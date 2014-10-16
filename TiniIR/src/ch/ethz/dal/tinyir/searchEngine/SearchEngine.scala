@@ -3,6 +3,7 @@ package ch.ethz.dal.tinyir.searchEngine
 import ch.ethz.dal.tinyir.io.TipsterStream
 import ch.ethz.dal.tinyir.util.StopWatch
 import scala.io.Source
+import ch.ethz.dal.tinyir.lectures.TipsterGroundTruth
 
 object SearchEngine {
   
@@ -23,25 +24,41 @@ object SearchEngine {
     }
   }
   
+  def printPrecision(queryId: Int, relevantDocuments: Set[String], retrievedDocuments: Set[String]) = {
+    if(retrievedDocuments.size > 0){
+    	println(queryId + "\tRetrieved Documents: " + retrievedDocuments.size + "\tPrecision: " + relevantDocuments.intersect(retrievedDocuments).size / retrievedDocuments.size.toDouble)
+    }
+  }
+  
   def main(args: Array[String]) {
-//    var watch = new StopWatch()
-//    watch.start
+    var watch = new StopWatch()
+    watch.start
 
     // create model
     val tipster = new TipsterStream("./tipster-dataset/zips")
-    var model = new LanguageModel()
-    model.computeModel(tipster.stream.take(500))
+    var model = new TermModel()
+    model.computeModel(tipster.stream.take(100))
+    
+    // read ground truth
+    val groundTruth = new TipsterGroundTruth("./tipster-dataset/qrels")
     
     // process queries
     val queries = getQueries("./tipster-dataset/topics")
     for( (query, queryId) <- queries.take(5)){
 	    val scores = model.computeScore(query).zip(Stream from 1)
-	    printQueryResults(queryId, scores)
+	    //printQueryResults(queryId, scores)
+	    
+	    // ground truth is available only for training data (i.e. queryId's 50-90)
+	    if (queryId <= 90) {
+	    	val relevantDocuments = groundTruth.judgements.get(queryId.toString).get.toSet
+	    	val retrievedDocuments = scores.map({ case(docId, rank) => docId }).toSet
+	    	printPrecision(queryId, relevantDocuments, retrievedDocuments)
+	    }
     }
     
     
     
-//    watch.stop
-//    println("time = " + watch.stopped)
+    watch.stop
+    println("time = " + watch.stopped)
   }
 }

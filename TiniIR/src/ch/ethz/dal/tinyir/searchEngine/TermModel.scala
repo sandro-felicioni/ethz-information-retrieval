@@ -19,8 +19,6 @@ class TermModel extends AbstractModel{
 
     val numDocuments = tfModel.values.flatMap(list => list.map(tuple => tuple._1)).toSet.size
     idfModel = tfModel.mapValues(list => log2(numDocuments / list.size.toDouble))
-
-    println("number of terms = " + tfModel.keys.size)
   }
 
   /**
