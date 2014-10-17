@@ -26,7 +26,7 @@ class TermModel extends AbstractModel{
    * documents are considered, that at least contain one of the words in the query.
    */
   def computeScore(query: String): List[String] = {
-    val queryTerms = Tokenizer.tokenize(query).distinct
+    val queryTerms = Tokenizer.toLowerCase(Tokenizer.tokenize(query)).distinct
     val length = queryTerms.length
 
     // compute scores for each document which contains at least one word in query

@@ -34,10 +34,11 @@ object SearchEngine {
     var watch = new StopWatch()
     watch.start
 
+    
     // create model
     val tipster = new TipsterStream("./tipster-dataset/zips")
     var model = new TermModel()
-    model.computeModel(tipster.stream.take(100))
+    model.computeModel(tipster.stream.take(5000))
     
     // read ground truth
     val groundTruth = new TipsterGroundTruth("./tipster-dataset/qrels")
@@ -55,7 +56,6 @@ object SearchEngine {
 	    	printPrecision(queryId, relevantDocuments, retrievedDocuments)
 	    }
     }
-    
     
     
     watch.stop

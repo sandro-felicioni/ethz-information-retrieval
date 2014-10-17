@@ -33,7 +33,7 @@ class LanguageModel extends AbstractModel {
   }
   
   def computeScore(query: String): List[String] = {
-    val queryTerms = Tokenizer.tokenize(query).distinct
+    val queryTerms = Tokenizer.toLowerCase(Tokenizer.tokenize(query)).distinct
     val length = queryTerms.length
 
     // compute scores for each document which contains at least one word in query
