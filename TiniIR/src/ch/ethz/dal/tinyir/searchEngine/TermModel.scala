@@ -1,42 +1,39 @@
 package ch.ethz.dal.tinyir.searchEngine
 
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-
+import ch.ethz.dal.tinyir.io.TipsterStream
 import ch.ethz.dal.tinyir.processing.Tokenizer
-import ch.ethz.dal.tinyir.processing.XMLDocument
+import scala.collection.mutable.PriorityQueue
 
-class TermModel extends AbstractModel{
-  var tfModel: Map[String, List[(String, Double)]] = null
-  var idfModel: Map[String, Double] = null
+class TermModel(tipster: TipsterStream) extends AbstractModel(tipster) {
 
-  private def computeLogTermFrequency(list: List[(String,Double)]) : List[(String,Double)] = {
-    return list.map( { case(docId, tf) => (docId, log2(tf + 1)) }) // we add + 1 so that log is lower bounded by 0
+  var idfModel: collection.Map[String, Double] = null
+
+  /** Precompute IDF Model */
+  def computeModel() = {
+    var numDocuments = 0
+    val idf = mutable.Map[String,Int]().withDefaultValue(0)
+    for (doc <- tipster.stream) {
+      idf ++= getCleanTokens(doc.tokens).distinct.map(term => term -> (1 + idf.getOrElse(term, 0)))
+      numDocuments += 1
+      
+      if (numDocuments % 10000 == 0){
+        println("t = " + numDocuments)
+      }
+    }
+    
+    idfModel = idf.mapValues(count => log2(numDocuments / count.toDouble))
   }
 
-  def computeModel(stream: Stream[XMLDocument]) = {
-    tfModel = computeRelativeTermFrequencies(stream).mapValues(list => computeLogTermFrequency(list) )
-
-    val numDocuments = tfModel.values.flatMap(list => list.map(tuple => tuple._1)).toSet.size
-    idfModel = tfModel.mapValues(list => log2(numDocuments / list.size.toDouble))
+  protected def computeDocumentScore(query: String, tfModel: Map[String, Double]): Double = {
+    var score = 0d
+    for (queryToken <- getCleanTokens(Tokenizer.tokenize(query)).distinct) {
+      score += logTF(queryToken, tfModel) * idfModel.getOrElse(queryToken, 0d)
+    }
+    return score
   }
-
-  /**
-   * Computes a score for this query and returns the top 100 (at most) relevant documents. Note that just
-   * documents are considered, that at least contain one of the words in the query.
-   */
-  def computeScore(query: String): List[String] = {
-    val queryTerms = Tokenizer.toLowerCase(Tokenizer.tokenize(query)).distinct
-    val length = queryTerms.length
-
-    // compute scores for each document which contains at least one word in query
-    var scores = new mutable.HashMap[String, Double]()
-    queryTerms.foreach(term => tfModel.getOrElse(term, List()).foreach { case (docId, tf) => scores.put(docId, tf * idfModel.get(term).get + scores.getOrElse(docId, 0d)) })
-
-    // sort after highest score and return at most the top 100 relevant documents 
-    val topScores = scores.toList.sortBy({ case (docId, score) => -score }).take(100)
-    //topScores.foreach(pair => println("document id = " + pair._1 + "\tscore = " + pair._2))
-
-    return topScores.map({ case (docId, score) => docId })
-  }
+  
+  private def logTF(term: String, tfModel: Map[String, Double]) : Double = {
+    return log2(1 + tfModel.getOrElse(term, 0d))
+  }  
 }

@@ -3,47 +3,30 @@ package ch.ethz.dal.tinyir.searchEngine
 import ch.ethz.dal.tinyir.processing.XMLDocument
 import ch.ethz.dal.tinyir.processing.Tokenizer
 import scala.collection.mutable
+import ch.ethz.dal.tinyir.io.TipsterStream
 
-class LanguageModel extends AbstractModel {
+class LanguageModel(tipster: TipsterStream) extends AbstractModel(tipster) {
 
-  var tfModel: Map[String, List[(String, Double)]] = null
-  var languageModel : Map[String, Double] = null
-  
-  private def convertAbsoluteToRelativeFrequencies(list: List[(String, Int, Int)]) : List[(String, Double)] = {
-    return list.map(triple => (triple._1, triple._2 / triple._3.toDouble ))
+  var languageModel: collection.Map[String, Double] = null
+
+  /** Precompute language model: P(w) */
+  def computeModel() = {
+    var cf = mutable.Map[String, Int]().withDefaultValue(0)
+    for (doc <- tipster.stream) {
+      cf ++= getCleanTokens(doc.tokens).groupBy(identity).map({ case (term, list) => term -> (list.length + cf.getOrElse(term, 0)) })
+    }
+    val totalWords = cf.values.sum
+
+    languageModel = cf.mapValues(count => count / totalWords.toDouble)
   }
-  
-  /** Get a list of (docId, absolute-frequency, document-size) for a particular term */
-  private def countWordsInCollection(list: List[(String, Int, Int)]) : Int = {
-    return list.map(triple => triple._2).sum
-  }
-  
-  def computeModel(stream: Stream[XMLDocument]) = {
-    val absoluteTfModel = computeAbsoluteTermFrequencies(stream)
-    val totalWords = absoluteTfModel.flatMap(tfEntry => tfEntry._2.map(triple => triple._2)).sum
-    
-    languageModel = absoluteTfModel.mapValues(list => countWordsInCollection(list)/totalWords.toDouble)
-    tfModel = absoluteTfModel.mapValues(list => convertAbsoluteToRelativeFrequencies(list))
-  }
-  
-  /** Computes log P(w|d) = log[ (1-a) * P'(w|d) + a * P(w) ]. */
-  private def termScorePerDocument(termFrequency: Double, term: String) : Double = {
+
+  /** Computes: sum of log P(w|d) = sum of log[ (1-a) * P'(w|d) + a * P(w) ]. */
+  protected def computeDocumentScore(query: String, tfModel: Map[String, Double]): Double = {
+    var score = 0d
     val a = 0.7
-    return log2(1 + (1-a) * termFrequency + a * languageModel.get(term).get) // shift by 1 to get at least 0 
-  }
-  
-  def computeScore(query: String): List[String] = {
-    val queryTerms = Tokenizer.toLowerCase(Tokenizer.tokenize(query)).distinct
-    val length = queryTerms.length
-
-    // compute scores for each document which contains at least one word in query
-    var scores = new mutable.HashMap[String, Double]()
-    queryTerms.foreach(term => tfModel.getOrElse(term, List()).foreach { case (docId, tf) => scores.put(docId, termScorePerDocument(tf, term) + scores.getOrElse(docId, 0d)) })
-
-    // sort after highest score and return at most the top 100 relevant documents 
-    val topScores = scores.toList.sortBy({ case (docId, score) => -score }).take(100)
-    //topScores.foreach(pair => println("document id = " + pair._1 + "\tscore = " + pair._2))
-
-    return topScores.map({ case (docId, score) => docId })
+    for (queryToken <- getCleanTokens(Tokenizer.tokenize(query)).distinct) {
+      score += log2(1 + (1 - a) * tfModel.getOrElse(queryToken, 0d) + a * languageModel.get(queryToken).get) // shift by 1 to get at least 0
+    }
+    return score
   }
 }
