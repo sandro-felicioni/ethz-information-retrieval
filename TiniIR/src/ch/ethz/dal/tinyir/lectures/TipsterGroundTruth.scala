@@ -16,7 +16,7 @@ class TipsterGroundTruth(path:String) {
 	  Source.fromFile(path).getLines()
 	  .filter(l => !l.endsWith("0"))
 	  .map(l => l.split(" "))
-	  .map(e => (e(0), e(2)))
+	  .map(e => (e(0), e(2).replaceAll("-", "")))
 	  .toArray
 	  .groupBy(_._1)
 	  .mapValues(_.map(_._2))
