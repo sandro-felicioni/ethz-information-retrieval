@@ -4,6 +4,9 @@ import ch.ethz.dal.tinyir.io.TipsterStream
 import ch.ethz.dal.tinyir.util.StopWatch
 import scala.io.Source
 import ch.ethz.dal.tinyir.lectures.TipsterGroundTruth
+import java.io.PrintWriter
+import java.io.FileOutputStream
+import java.util.Date
 
 object SearchEngine {
 
@@ -25,6 +28,15 @@ object SearchEngine {
       rank += 1
     }
   }
+  
+  def writeQueryResults(queryId: Int, queryResults: List[(String, Double)], writer: PrintWriter) = {
+    var rank = 1
+    for ((documentId, score) <- queryResults) {
+      writer.println(queryId + " " + rank + " " + documentId)
+      rank += 1
+    }
+    writer.flush()
+  }
 
   def printPrecision(queryId: Int, relevantDocuments: Set[String], retrievedDocuments: Set[String]) = {
     if (retrievedDocuments.size > 0) {
@@ -41,7 +53,7 @@ object SearchEngine {
     model.computeModel()
 
     // process queries
-    val queries = getQueries("./tipster-dataset/topics").take(2)
+    val queries = getQueries("./tipster-dataset/topics")
     val maxDocuments = 10 // max number of documents per query that are returned
     val results = model.computeScore(queries, maxDocuments)
 
@@ -57,7 +69,14 @@ object SearchEngine {
         printPrecision(queryId, relevantDocuments, retrievedDocuments)
       }
     }
-
+    
+    // write results to file for last 10 queries (test data)
+    val writer = new PrintWriter(new FileOutputStream("ranking-sandro-felicioni-" + new Date() + ".run"))
+    for ((queryId, queryResults) <- results.takeRight(10)) {
+    	writeQueryResults(queryId, queryResults, writer)
+    }
+    println("Files written to disk")
+    
     watch.stop
     println("time = " + watch.stopped)
   }
