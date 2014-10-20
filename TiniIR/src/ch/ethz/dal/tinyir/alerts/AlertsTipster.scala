@@ -17,16 +17,16 @@ object AlertsTipster {
 
     // find the top 100 documents for the query "Airbus Subsidies" 
     val query = "Airbus Subsidies"
-    val num = 100
+    val num = 10
     val alerts = new AlertsTipster(query, num)
     val tipster = new TipsterStream("./tipster-dataset/zips")
 
     val sw = new StopWatch; sw.start
     var iter = 0
-    for (doc <- tipster.stream.take(30000)) {
+    for (doc <- tipster.stream) {
       iter += 1
       alerts.process(doc.name, doc.tokens)
-      if (iter % 20000 ==0) {
+      if (iter % 10000 ==0) {
         println("Iteration = " + iter)
         alerts.results.foreach(println)    
       }  

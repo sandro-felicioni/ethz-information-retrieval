@@ -11,7 +11,7 @@ object Tokenizer {
     
   /** Transform a list of strings into lower case strings */
   def toLowerCase(list: List[String]) = {
-    list.map(token => token.map(lower(_)))
+    list.map(token => token.toLowerCase())
   }
   
   private def lower(character: Char): Char = {
