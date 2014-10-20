@@ -42,7 +42,7 @@ object SearchEngine {
 
     // process queries
     val queries = getQueries("./tipster-dataset/topics").take(2)
-    val maxDocuments = 100 // max number of documents per query that are returned
+    val maxDocuments = 10 // max number of documents per query that are returned
     val results = model.computeScore(queries, maxDocuments)
 
     // validate with ground truth

@@ -12,12 +12,16 @@ class LanguageModel(tipster: TipsterStream) extends AbstractModel(tipster) {
   /** Precompute language model: P(w) */
   def computeModel() = {
     var cf = mutable.Map[String, Int]().withDefaultValue(0)
-    for (doc <- tipster.stream) {
+    for ( (doc, numProcessed) <- tipster.stream zip (Stream from 1)) {
       cf ++= getCleanTokens(doc.tokens).groupBy(identity).map({ case (term, list) => term -> (list.length + cf.getOrElse(term, 0)) })
+      
+      if (numProcessed % 10000 == 0){
+        println("Language Model: parsed documents = " + numProcessed)
+      }      
     }
     val totalWords = cf.values.sum
-
     languageModel = cf.mapValues(count => count / totalWords.toDouble)
+    println("Language Model: complete")
   }
 
   /** Computes: sum of log P(w|d) = sum of log[ (1-a) * P'(w|d) + a * P(w) ]. */

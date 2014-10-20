@@ -13,16 +13,18 @@ class TermModel(tipster: TipsterStream) extends AbstractModel(tipster) {
   def computeModel() = {
     var numDocuments = 0
     val idf = mutable.Map[String,Int]().withDefaultValue(0)
-    for (doc <- tipster.stream) {
+    
+    for (doc <- tipster.stream.take(30000)) {
       idf ++= getCleanTokens(doc.tokens).distinct.map(term => term -> (1 + idf.getOrElse(term, 0)))
       numDocuments += 1
       
       if (numDocuments % 10000 == 0){
-        println("t = " + numDocuments)
+        println("IDF Model: parsed documents = " + numDocuments)
       }
     }
     
     idfModel = idf.mapValues(count => log2(numDocuments / count.toDouble))
+    println("IDF Model: complete")
   }
 
   protected def computeDocumentScore(query: String, tfModel: Map[String, Double]): Double = {
