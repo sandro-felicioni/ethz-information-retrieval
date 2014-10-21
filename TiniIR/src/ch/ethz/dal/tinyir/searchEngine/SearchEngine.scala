@@ -68,9 +68,9 @@ object SearchEngine {
     // create model
     var model : AbstractModel = null
     if (termModel)
-      model = new TermModel(new TipsterStream(pathToDataset))
+      model = new TermModel(new TipsterStream(pathToDataset), 30000)
     else
-      model = new LanguageModel(new TipsterStream(pathToDataset))
+      model = new LanguageModel(new TipsterStream(pathToDataset), 30000)
     model.computeModel()
 
     // process queries
@@ -96,8 +96,8 @@ object SearchEngine {
     println("MAP = " + MAP.map(_._2).sum / MAP.length.toDouble)
     
     // write results to file for queries 91-100 (test data)
-    val usedModel = if (termModel) "TM" else "LM"
-    val writer = new PrintWriter(new FileOutputStream("ranking-sandro-felicioni-" + usedModel + "-" + new Date() + ".run"))
+    val usedModel = if (termModel) "t" else "l"
+    val writer = new PrintWriter(new FileOutputStream("ranking-" + usedModel + "-sandro-felicioni-" + new Date() + ".run"))
     for ((queryId, queryResults) <- results if queryId > 90) {
     	writeQueryResults(queryId, queryResults, writer)
     }

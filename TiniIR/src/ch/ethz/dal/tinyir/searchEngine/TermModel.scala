@@ -5,7 +5,7 @@ import ch.ethz.dal.tinyir.io.TipsterStream
 import ch.ethz.dal.tinyir.processing.Tokenizer
 import scala.collection.mutable.PriorityQueue
 
-class TermModel(tipster: TipsterStream) extends AbstractModel(tipster) {
+class TermModel(tipster: TipsterStream, numDocumentsToParse: Int = -1) extends AbstractModel(tipster, numDocumentsToParse) {
 
   var idfModel: collection.Map[String, Double] = null
 
@@ -14,7 +14,7 @@ class TermModel(tipster: TipsterStream) extends AbstractModel(tipster) {
     var numDocuments = 0
     val idf = mutable.Map[String,Int]().withDefaultValue(0)
     
-    for (doc <- tipster.stream) {
+    for (doc <- getStream()) {
       idf ++= getCleanTokens(doc.tokens).distinct.map(term => term -> (1 + idf.getOrElse(term, 0)))
       numDocuments += 1
       

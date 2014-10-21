@@ -5,7 +5,7 @@ import ch.ethz.dal.tinyir.processing.Tokenizer
 import scala.collection.mutable
 import ch.ethz.dal.tinyir.io.TipsterStream
 
-class LanguageModel(tipster: TipsterStream) extends AbstractModel(tipster) {
+class LanguageModel(tipster: TipsterStream, numDocumentsToParse: Int = -1) extends AbstractModel(tipster, numDocumentsToParse) {
 
   var languageModel: collection.Map[String, Double] = null
 		  
@@ -13,7 +13,7 @@ class LanguageModel(tipster: TipsterStream) extends AbstractModel(tipster) {
   def computeModel() = {
     var numProcessed = 0
     var cf = mutable.Map[String, Int]().withDefaultValue(0)
-    for ( doc <- tipster.stream) {
+    for ( doc <- getStream()) {
       cf ++= getCleanTokens(doc.tokens).groupBy(identity).map({ case (term, list) => term -> (list.length + cf.getOrElse(term, 0)) })
       numProcessed += 1
       
