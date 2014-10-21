@@ -47,11 +47,11 @@ object SearchEngine {
     var pathToQueries = rootPath + "topics"
     var pathToGroundTruth = rootPath + "qrels"
     var termModel = true
-    if (args.length == 5){
-      pathToDataset = args(1)
-	  pathToQueries = args(2)
-	  pathToGroundTruth = args(3)
-	  if (args(4) == "LM")
+    if (args.length == 4){
+      pathToDataset = args(0)
+	  pathToQueries = args(1)
+	  pathToGroundTruth = args(2)
+	  if (args(3) == "LM")
 	    termModel = false
     }else{
       println("Not enough arguments (default values are now used), provide exactly 4 arguments:")
