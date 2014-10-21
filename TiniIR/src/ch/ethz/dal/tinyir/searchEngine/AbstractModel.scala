@@ -45,7 +45,9 @@ abstract class AbstractModel(tipster: TipsterStream) {
         val score = computeDocumentScore(query, tfModel)
 
         val priorityQueue = results.get(queryId).get
-        priorityQueue.enqueue((doc.name, score))
+        if (priorityQueue.length < maxDocuments || score >= priorityQueue.head._2) {
+        	priorityQueue.enqueue((doc.name, score))
+        } 
 
         if (priorityQueue.length > maxDocuments) {
           priorityQueue.dequeue // remove element with highest priority

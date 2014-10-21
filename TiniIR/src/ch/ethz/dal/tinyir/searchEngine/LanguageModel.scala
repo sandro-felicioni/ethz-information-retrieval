@@ -13,7 +13,7 @@ class LanguageModel(tipster: TipsterStream) extends AbstractModel(tipster) {
   def computeModel() = {
     var numProcessed = 0
     var cf = mutable.Map[String, Int]().withDefaultValue(0)
-    for ( doc <- tipster.stream ) {
+    for ( doc <- tipster.stream) {
       cf ++= getCleanTokens(doc.tokens).groupBy(identity).map({ case (term, list) => term -> (list.length + cf.getOrElse(term, 0)) })
       numProcessed += 1
       
@@ -29,7 +29,7 @@ class LanguageModel(tipster: TipsterStream) extends AbstractModel(tipster) {
   /** Computes: sum of log P(w|d) = sum of log[ (1-a) * P'(w|d) + a * P(w) ]. */
   protected def computeDocumentScore(query: String, tfModel: Map[String, Double]): Double = {
     var score = 0d
-    val a = 0.5
+    val a = 0.3
     for (queryToken <- getCleanTokens(Tokenizer.tokenize(query)).distinct) {
       score += log2(1 + (1 - a) * tfModel.getOrElse(queryToken, 0d) + a * languageModel.getOrElse(queryToken, 0d)) // shift by 1 to get at least 0
     }

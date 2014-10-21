@@ -14,10 +14,10 @@ object SearchEngine {
 
   /** Get the queries along with their id => List of tuples in format (query, query-id) */
   def getQueries(filePath: String): List[(String, Int)] = {
-    var queryIterator = Source.fromFile("./tipster-dataset/topics").getLines
+    var queryIterator = Source.fromFile(filePath).getLines
     var queries = queryIterator.filter(line => line.startsWith("<title>")).map(line => line.substring(line.indexOf("Topic:") + "Topic:".length()).trim()).toList
 
-    var IdIterator = Source.fromFile("./tipster-dataset/topics").getLines
+    var IdIterator = Source.fromFile(filePath).getLines
     var query_ids = IdIterator.filter(line => line.startsWith("<num>")).map(line => line.substring(line.indexOf("Number:") + "Number:".length()).trim().toInt).toList
 
     return queries.zip(query_ids)
@@ -41,20 +41,45 @@ object SearchEngine {
   }
 
   def main(args: Array[String]) {
+    // read out parameters
+    val rootPath = "/Users/Sandro/projects/ethz-information-retrieval/TiniIR/tipster-dataset/"
+    var pathToDataset = rootPath + "zips/"
+    var pathToQueries = rootPath + "topics"
+    var pathToGroundTruth = rootPath + "qrels"
+    var termModel = true
+    if (args.length == 5){
+      pathToDataset = args(1)
+	  pathToQueries = args(2)
+	  pathToGroundTruth = args(3)
+	  if (args(4) == "LM")
+	    termModel = false
+    }else{
+      println("Not enough arguments (default values are now used), provide exactly 4 arguments:")
+      println("\tpath to dataset which contains all zips: Default value = " + pathToDataset)
+      println("\tpath to queries: Default value = " + pathToQueries)
+      println("\tpath to ground truth values: Default value = " + pathToGroundTruth)
+      println("\tThe model you want to use (either TM or LM): Default value = " + "TM")
+    }
+
+    
     var watch = new StopWatch()
     watch.start
-
+    
     // create model
-    var model = new LanguageModel(new TipsterStream("./tipster-dataset/zips"))
+    var model : AbstractModel = null
+    if (termModel)
+      model = new TermModel(new TipsterStream(pathToDataset))
+    else
+      model = new LanguageModel(new TipsterStream(pathToDataset))
     model.computeModel()
 
     // process queries
-    val queries = getQueries("./tipster-dataset/topics")
+    val queries = getQueries(pathToQueries)
     val maxDocuments = 100 // max number of documents per query that are returned
     val results = model.computeScore(queries, maxDocuments)
 
     // validate with ground truth
-    val groundTruth = new TipsterGroundTruth("./tipster-dataset/qrels")
+    val groundTruth = new TipsterGroundTruth(pathToGroundTruth)
     var MAP = new collection.mutable.ListBuffer[(Int, Double)]()
     for ((queryId, queryResults) <- results) {
       printQueryResults(queryId, queryResults)
