@@ -63,7 +63,7 @@ object SearchEngine {
       if (queryId <= 90) {
         val relevantDocuments = groundTruth.judgements.get(queryId.toString).get.toSet
         val retrievedDocuments = queryResults.map({ case (docId, score) => docId }).toList
-        val ap = printAveragePrecision(queryId, relevantDocuments, retrievedDocuments)
+        val ap = new AveragePrecision(retrievedDocuments, relevantDocuments, 100).avgPrecision
         MAP.append((queryId, ap))
       }
     }
