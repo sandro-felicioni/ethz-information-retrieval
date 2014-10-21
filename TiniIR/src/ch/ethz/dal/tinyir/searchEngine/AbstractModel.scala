@@ -7,6 +7,7 @@ import ch.ethz.dal.tinyir.processing.Tokenizer
 import ch.ethz.dal.tinyir.processing.XMLDocument
 import ch.ethz.dal.tinyir.processing.XMLDocument
 import ch.ethz.dal.tinyir.io.TipsterStream
+import com.github.aztek.porterstemmer.PorterStemmer
 
 abstract class AbstractModel(tipster: TipsterStream) {
 
@@ -14,7 +15,8 @@ abstract class AbstractModel(tipster: TipsterStream) {
 
   /** Transform a list of strings into lower case strings and remove stop words*/
   protected def getCleanTokens(list: List[String]): List[String] = {
-    return list.map(token => token.toLowerCase()).filter(token => !stopwords.contains(token))
+    return list.map(token => token.toLowerCase()).filter(token => token.length() > 2 && !stopwords.contains(token))
+	// return list.map(token => token.toLowerCase()).filter(token => token.length() > 2 && !stopwords.contains(token)).map(token => PorterStemmer.stem(token))
   }  
 
   /** Compute log_2 */
@@ -33,7 +35,7 @@ abstract class AbstractModel(tipster: TipsterStream) {
     for ((_, queryId) <- queries) {
       results.put(queryId, new mutable.PriorityQueue[(String, Double)]()(Ordering.by(score => -score._2)))
     }
-
+    
     // process one document at a time
     var numProcessed = 0
     for (doc <- tipster.stream) {
