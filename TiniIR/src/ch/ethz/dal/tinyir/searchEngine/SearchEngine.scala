@@ -95,9 +95,10 @@ object SearchEngine {
     MAP.foreach(ap => println(ap._1 + "\tAP =  " + ap._2) )
     println("MAP = " + MAP.map(_._2).sum / MAP.length.toDouble)
     
-    // write results to file for last 10 queries (test data)
-    val writer = new PrintWriter(new FileOutputStream("ranking-sandro-felicioni-" + new Date() + ".run"))
-    for ((queryId, queryResults) <- results.takeRight(10)) {
+    // write results to file for queries 91-100 (test data)
+    val usedModel = if (termModel) "TM" else "LM"
+    val writer = new PrintWriter(new FileOutputStream("ranking-sandro-felicioni-" + usedModel + "-" + new Date() + ".run"))
+    for ((queryId, queryResults) <- results if queryId > 90) {
     	writeQueryResults(queryId, queryResults, writer)
     }
     println("Files written to disk")
