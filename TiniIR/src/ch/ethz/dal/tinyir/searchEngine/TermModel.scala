@@ -14,7 +14,7 @@ class TermModel(tipster: TipsterStream) extends AbstractModel(tipster) {
     var numDocuments = 0
     val idf = mutable.Map[String,Int]().withDefaultValue(0)
     
-    for (doc <- tipster.stream.take(30000)) {
+    for (doc <- tipster.stream) {
       idf ++= getCleanTokens(doc.tokens).distinct.map(term => term -> (1 + idf.getOrElse(term, 0)))
       numDocuments += 1
       

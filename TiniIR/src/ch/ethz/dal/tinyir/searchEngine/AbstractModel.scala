@@ -35,7 +35,8 @@ abstract class AbstractModel(tipster: TipsterStream) {
     }
 
     // process one document at a time
-    for ((doc, numProcessed) <- tipster.stream.take(30000) zip (Stream from 1)) {
+    var numProcessed = 0
+    for (doc <- tipster.stream) {
       val tokens = getCleanTokens(doc.tokens)
       val tfModel: Map[String, Double] = tokens.groupBy(identity).mapValues(list => list.length / tokens.length.toDouble)
 
@@ -50,6 +51,7 @@ abstract class AbstractModel(tipster: TipsterStream) {
           priorityQueue.dequeue // remove element with highest priority
         }
       }
+      numProcessed += 1
       if (numProcessed % 10000 == 0){
         println("Scoring: parsed documents = " + numProcessed)
       }

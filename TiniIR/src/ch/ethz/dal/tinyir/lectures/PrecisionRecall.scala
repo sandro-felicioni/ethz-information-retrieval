@@ -4,11 +4,12 @@ package ch.ethz.dal.tinyir.lectures
 import collection.Seq
 import util.Random
 import math.{ min, max }
+import javax.sound.midi.Sequence
 
 class PrecisionRecall[A](ranked: Seq[A], relev: Set[A]) {
 
   // total number of relevant items  
-  val num = relev.size
+  val totalRelevantDocs = relev.size
 
   // the indices in the ranked sequence at which relevant items occur
   val relevIdx = ranked.zipWithIndex.filter { case (r, _) => relev(r) }.map(_._2).toArray
@@ -22,7 +23,7 @@ class PrecisionRecall[A](ranked: Seq[A], relev: Set[A]) {
   // number of results to reach recall level 
   private def recall2num(recall: Double) = {
     assert(recall >= 0.0 && recall <= 1.0)
-    min((recall * num).ceil.toInt, num)
+    min((recall * totalRelevantDocs).ceil.toInt, totalRelevantDocs)
   }
 
   // precision at recall level 
@@ -33,7 +34,7 @@ class PrecisionRecall[A](ranked: Seq[A], relev: Set[A]) {
     else precs(n - 1)
   }
 
-  // Equally spaced recall levels
+  // Equally spaced recall levels between 0 and 1
   private def recallLevels(nLevels: Int) = {
     (0 to nLevels - 1).map(i => i / (nLevels - 1).toDouble)
   }
@@ -44,8 +45,8 @@ class PrecisionRecall[A](ranked: Seq[A], relev: Set[A]) {
   }
 
   // Averaged precision
-  def getAveragePrecision(nRecallLevels: Int) = {
-    getInterpolatedPrecisionAt(nRecallLevels).sum / nRecallLevels
+  def getAveragePrecision(nRecallLevels: Int) : Double = {
+    return getInterpolatedPrecisionAt(nRecallLevels).sum / nRecallLevels
   }
 }
 
@@ -90,7 +91,7 @@ object PrecisionRecall {
     println("Precision at relevant indices : " + precisionRecall.precs.mkString(" "))
     println("Precision at 11 recall levels : " + precisionRecall.getInterpolatedPrecisionAt(11))
     println("Average Precision : " + precisionRecall.getAveragePrecision(11))
-
+    
   }
 }
 

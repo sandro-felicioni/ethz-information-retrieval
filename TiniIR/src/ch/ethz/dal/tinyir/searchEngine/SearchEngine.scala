@@ -7,6 +7,8 @@ import ch.ethz.dal.tinyir.lectures.TipsterGroundTruth
 import java.io.PrintWriter
 import java.io.FileOutputStream
 import java.util.Date
+import ch.ethz.dal.tinyir.lectures.PrecisionRecall
+import ch.ethz.dal.tinyir.lectures.AveragePrecision
 
 object SearchEngine {
 
@@ -38,37 +40,35 @@ object SearchEngine {
     writer.flush()
   }
 
-  def printPrecision(queryId: Int, relevantDocuments: Set[String], retrievedDocuments: Set[String]) = {
-    if (retrievedDocuments.size > 0) {
-      println(queryId + "\tRetrieved Documents: " + retrievedDocuments.size + "\tPrecision: " + relevantDocuments.intersect(retrievedDocuments).size / retrievedDocuments.size.toDouble)
-    }
-  }
-
   def main(args: Array[String]) {
     var watch = new StopWatch()
     watch.start
 
     // create model
-    var model = new TermModel(new TipsterStream("./tipster-dataset/zips"))
+    var model = new LanguageModel(new TipsterStream("./tipster-dataset/zips"))
     model.computeModel()
 
     // process queries
     val queries = getQueries("./tipster-dataset/topics")
-    val maxDocuments = 10 // max number of documents per query that are returned
+    val maxDocuments = 100 // max number of documents per query that are returned
     val results = model.computeScore(queries, maxDocuments)
 
     // validate with ground truth
     val groundTruth = new TipsterGroundTruth("./tipster-dataset/qrels")
+    var MAP = new collection.mutable.ListBuffer[(Int, Double)]()
     for ((queryId, queryResults) <- results) {
       printQueryResults(queryId, queryResults)
 
       //ground truth is available only for training data (i.e. queryId's 50-90)
       if (queryId <= 90) {
         val relevantDocuments = groundTruth.judgements.get(queryId.toString).get.toSet
-        val retrievedDocuments = queryResults.map({ case (docId, score) => docId }).toSet
-        printPrecision(queryId, relevantDocuments, retrievedDocuments)
+        val retrievedDocuments = queryResults.map({ case (docId, score) => docId }).toList
+        val ap = printAveragePrecision(queryId, relevantDocuments, retrievedDocuments)
+        MAP.append((queryId, ap))
       }
     }
+    MAP.foreach(ap => println(ap._1 + "\tAP =  " + ap._2) )
+    println("MAP = " + MAP.map(_._2).sum / MAP.length.toDouble)
     
     // write results to file for last 10 queries (test data)
     val writer = new PrintWriter(new FileOutputStream("ranking-sandro-felicioni-" + new Date() + ".run"))
