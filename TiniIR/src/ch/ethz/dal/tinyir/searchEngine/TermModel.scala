@@ -27,9 +27,9 @@ class TermModel(tipster: TipsterStream) extends AbstractModel(tipster) {
     println("IDF Model: complete")
   }
 
-  protected def computeDocumentScore(query: String, tfModel: Map[String, Double]): Double = {
+  protected def computeDocumentScore(query: List[String], tfModel: Map[String, Double]): Double = {
     var score = 0d
-    for (queryToken <- getCleanTokens(Tokenizer.tokenize(query)).distinct) {
+    for (queryToken <- query) {
       score += logTF(queryToken, tfModel) * idfModel.getOrElse(queryToken, 0d)
     }
     return score

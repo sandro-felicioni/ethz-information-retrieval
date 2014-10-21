@@ -15,8 +15,7 @@ abstract class AbstractModel(tipster: TipsterStream) {
 
   /** Transform a list of strings into lower case strings and remove stop words*/
   protected def getCleanTokens(list: List[String]): List[String] = {
-    return list.map(token => token.toLowerCase()).filter(token => token.length() > 2 && !stopwords.contains(token))
-	// return list.map(token => token.toLowerCase()).filter(token => token.length() > 2 && !stopwords.contains(token)).map(token => PorterStemmer.stem(token))
+	return list.map(token => token.toLowerCase()).filter(token => token.length() > 2 && !stopwords.contains(token)).map(token => PorterStemmer.stem(token))
   }  
 
   /** Compute log_2 */
@@ -36,6 +35,9 @@ abstract class AbstractModel(tipster: TipsterStream) {
       results.put(queryId, new mutable.PriorityQueue[(String, Double)]()(Ordering.by(score => -score._2)))
     }
     
+    // get rid of stopwords in queries
+    val cleanQueries = queries.map(query => (getCleanTokens(Tokenizer.tokenize(query._1 )).distinct, query._2))
+    
     // process one document at a time
     var numProcessed = 0
     for (doc <- tipster.stream) {
@@ -43,7 +45,7 @@ abstract class AbstractModel(tipster: TipsterStream) {
       val tfModel: Map[String, Double] = tokens.groupBy(identity).mapValues(list => list.length / tokens.length.toDouble)
 
       // for each query compute a score for the current document
-      for ((query, queryId) <- queries) {
+      for ((query, queryId) <- cleanQueries) {
         val score = computeDocumentScore(query, tfModel)
 
         val priorityQueue = results.get(queryId).get
@@ -65,7 +67,7 @@ abstract class AbstractModel(tipster: TipsterStream) {
   } 
   
   /** Compute the score for a single query and document. */
-  protected def computeDocumentScore(query: String, tfModel: Map[String, Double]) : Double
+  protected def computeDocumentScore(query: List[String], tfModel: Map[String, Double]) : Double
 
   /** Precompute a model for later usage */
   def computeModel()  

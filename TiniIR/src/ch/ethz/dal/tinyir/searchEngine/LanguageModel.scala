@@ -25,12 +25,12 @@ class LanguageModel(tipster: TipsterStream) extends AbstractModel(tipster) {
     languageModel = cf.mapValues(count => count / totalWords.toDouble)
     println("Language Model: complete")
   }
-
+  
   /** Computes: sum of log P(w|d) = sum of log[ (1-a) * P'(w|d) + a * P(w) ]. */
-  protected def computeDocumentScore(query: String, tfModel: Map[String, Double]): Double = {
+  protected def computeDocumentScore(query: List[String], tfModel: Map[String, Double]): Double = {
     var score = 0d
     val a = 0.3
-    for (queryToken <- getCleanTokens(Tokenizer.tokenize(query)).distinct) {
+    for (queryToken <- query) {
       score += log2(1 + (1 - a) * tfModel.getOrElse(queryToken, 0d) + a * languageModel.getOrElse(queryToken, 0d)) // shift by 1 to get at least 0
     }
     return score
