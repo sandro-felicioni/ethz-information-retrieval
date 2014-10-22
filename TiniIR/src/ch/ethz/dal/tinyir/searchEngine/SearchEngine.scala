@@ -51,7 +51,6 @@ object SearchEngine {
     var pathToQueries = rootPath + "topics"
     var pathToGroundTruth = rootPath + "qrels"
     var modelToUse = "t"
-    var termModel = true
     if (args.length == 4){
       pathToDataset = args(0)
 	  pathToQueries = args(1)
@@ -74,9 +73,9 @@ object SearchEngine {
     // create model
     var model : AbstractModel = null
     if (modelToUse == "t")
-      model = new TermModel(new TipsterStream(pathToDataset), 30000)
+      model = new TermModel(new TipsterStream(pathToDataset))
     else
-      model = new LanguageModel(new TipsterStream(pathToDataset), 30000)
+      model = new LanguageModel(new TipsterStream(pathToDataset))
       
     model.computeModel()
 
@@ -104,8 +103,7 @@ object SearchEngine {
     println("MAP = " + MAP.map(_._2).sum / MAP.length.toDouble)
     
     // write results to file for queries 91-100 (test data)
-    val usedModel = if (termModel) "t" else "l"
-    val writer = new PrintWriter(new FileOutputStream("ranking-" + usedModel + "-sandro-felicioni-" + new Date() + ".run"))
+    val writer = new PrintWriter(new FileOutputStream("ranking-" + modelToUse + "-sandro-felicioni-" + new Date() + ".run"))
     for ((queryId, queryResults) <- results if queryId > 90) {
     	writeQueryResults(queryId, queryResults, writer)
     }
