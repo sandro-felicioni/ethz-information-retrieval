@@ -51,7 +51,7 @@ abstract class AbstractModel(tipster: TipsterStream, numDocumentsToParse: Int = 
 
       // for each query compute a score for the current document
       for ((query, queryId) <- cleanQueries) {
-        val score = computeDocumentScore(query, tfModel)
+        val score = computeDocumentScore(query, tfModel, tokens)
 
         val priorityQueue = results.get(queryId).get
         if (priorityQueue.length < maxDocuments || score >= priorityQueue.head._2) {
@@ -72,7 +72,7 @@ abstract class AbstractModel(tipster: TipsterStream, numDocumentsToParse: Int = 
   } 
   
   /** Compute the score for a single query and document. */
-  protected def computeDocumentScore(query: List[String], tfModel: Map[String, Double]) : Double
+  protected def computeDocumentScore(query: List[String], tfModel: Map[String, Double], documentTokens: List[String]) : Double
 
   /** Precompute a model for later usage */
   def computeModel()  

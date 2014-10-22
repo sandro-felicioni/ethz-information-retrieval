@@ -27,8 +27,9 @@ class LanguageModel(tipster: TipsterStream, numDocumentsToParse: Int = -1) exten
   }
   
   /** Computes: sum of log P(w|d) = sum of log[ (1-a) * P'(w|d) + a * P(w) ]. */
-  protected def computeDocumentScore(query: List[String], tfModel: Map[String, Double]): Double = {
-    var score = 0d
+  protected def computeDocumentScore(query: List[String], tfModel: Map[String, Double], documentTokens: List[String]): Double = {
+    // initialize with number of word occurrences in document
+    var score : Double = query.map(token => if (tfModel.contains(token)) 1 else 0).sum
     val a = 0.3
     for (queryToken <- query) {
       score += log2(1 + (1 - a) * tfModel.getOrElse(queryToken, 0d) + a * languageModel.getOrElse(queryToken, 0d)) // shift by 1 to get at least 0

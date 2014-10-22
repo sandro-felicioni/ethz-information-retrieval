@@ -27,8 +27,10 @@ class TermModel(tipster: TipsterStream, numDocumentsToParse: Int = -1) extends A
     println("IDF Model: complete")
   }
 
-  protected def computeDocumentScore(query: List[String], tfModel: Map[String, Double]): Double = {
-    var score = 0d
+  protected def computeDocumentScore(query: List[String], tfModel: Map[String, Double], documentTokens: List[String]): Double = {
+    // initialize with number of word occurrences in document
+    var score : Double = query.map(token => if (tfModel.contains(token)) 1 else 0).sum
+    
     for (queryToken <- query) {
       score += logTF(queryToken, tfModel) * idfModel.getOrElse(queryToken, 0d)
     }

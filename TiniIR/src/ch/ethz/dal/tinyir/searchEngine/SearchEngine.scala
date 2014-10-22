@@ -23,10 +23,14 @@ object SearchEngine {
     return queries.zip(query_ids)
   }
 
-  def printQueryResults(queryId: Int, queryResults: List[(String, Double)]) = {
+  def printQueryResults(queryId: Int, queryResults: List[(String, Double)], relevantDocuments: Set[String]) = {
     var rank = 1
     for ((documentId, score) <- queryResults) {
-      println(queryId + " " + rank + " " + documentId + " " + score)
+      
+      var relevant = if (relevantDocuments.contains(documentId)) "R" else "N"
+      relevant = if(relevantDocuments.isEmpty) "?" else relevant
+      
+      println(queryId + " " + relevant + " " + rank + " " + documentId + " " + score)
       rank += 1
     }
   }
@@ -46,19 +50,21 @@ object SearchEngine {
     var pathToDataset = rootPath + "zips/"
     var pathToQueries = rootPath + "topics"
     var pathToGroundTruth = rootPath + "qrels"
+    var modelToUse = "t"
     var termModel = true
     if (args.length == 4){
       pathToDataset = args(0)
 	  pathToQueries = args(1)
 	  pathToGroundTruth = args(2)
-	  if (args(3) == "LM")
-	    termModel = false
+	  if (args(3) == "l"){
+		  modelToUse = "l"
+	  } 
     }else{
       println("Not enough arguments (default values are now used), provide exactly 4 arguments:")
       println("\tpath to dataset which contains all zips: Default value = " + pathToDataset)
       println("\tpath to queries: Default value = " + pathToQueries)
       println("\tpath to ground truth values: Default value = " + pathToGroundTruth)
-      println("\tThe model you want to use (either TM or LM): Default value = " + "TM")
+      println("\tThe (term | language) model you want to use (either m or l): Default value = " + "t")
     }
 
     
@@ -67,10 +73,11 @@ object SearchEngine {
     
     // create model
     var model : AbstractModel = null
-    if (termModel)
+    if (modelToUse == "t")
       model = new TermModel(new TipsterStream(pathToDataset), 30000)
     else
       model = new LanguageModel(new TipsterStream(pathToDataset), 30000)
+      
     model.computeModel()
 
     // process queries
@@ -82,7 +89,8 @@ object SearchEngine {
     val groundTruth = new TipsterGroundTruth(pathToGroundTruth)
     var MAP = new collection.mutable.ListBuffer[(Int, Double)]()
     for ((queryId, queryResults) <- results) {
-      printQueryResults(queryId, queryResults)
+      val relevantDocuments = groundTruth.judgements.getOrElse(queryId.toString, new Array[String](0)).toSet
+      printQueryResults(queryId, queryResults, relevantDocuments)
 
       //ground truth is available only for training data (i.e. queryId's 50-90)
       if (queryId <= 90) {
