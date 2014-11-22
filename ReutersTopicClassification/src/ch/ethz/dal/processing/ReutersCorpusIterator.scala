@@ -1,4 +1,4 @@
-package ch.ethz.dal.classifier.processing
+package ch.ethz.dal.processing
 
 import java.io.File
 import java.io.FileNotFoundException
@@ -10,8 +10,8 @@ import scala.util.Success
 import scala.util.Try
 
 
-/** Simple iterator over a set of XMLs zipped into several ZIP files
- * 
+/** 
+ * Simple iterator over a set of XMLs zipped into several ZIP files
  */
 class ReutersCorpusIterator(path : String) extends Iterator[ReutersRCVParse] {  
   // Queue of Zip files located at path
@@ -76,12 +76,12 @@ class ReutersCorpusIterator(path : String) extends Iterator[ReutersRCVParse] {
  
 }
 
-/** Example code computing topic statistics
- * 
+/** 
+ * Example code computing topic statistics
  */
 object ReutersCorpusIterator {
 	def main(args : Array[String]) = {
-	    val path = "/home/schmiflo/Data/IR2014/Reuters/assignment/train"
+	    val path = "./reuters-dataset/train"
 	  	val iter = new ReutersCorpusIterator(path)
 	    
 		val topicCounts = scala.collection.mutable.Map[String, Int]()
@@ -96,5 +96,6 @@ object ReutersCorpusIterator {
 			println(t + ": " + c + " documents")
 		
 	  	println(count + " docs in corpus")
+	  	println("Number of topics: " + topicCounts.keys.size)
 	}
 }

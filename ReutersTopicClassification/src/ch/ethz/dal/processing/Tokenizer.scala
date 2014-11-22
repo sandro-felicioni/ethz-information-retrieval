@@ -1,4 +1,4 @@
-package ch.ethz.dal.classifier.processing
+package ch.ethz.dal.processing
 
 object Tokenizer {
   def tokenize (text: String) : List[String] =

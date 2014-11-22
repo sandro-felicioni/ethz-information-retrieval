@@ -1,4 +1,4 @@
-package ch.ethz.dal.classifier.processing
+package ch.ethz.dal.processing
 
 import scala.util.Try
 
