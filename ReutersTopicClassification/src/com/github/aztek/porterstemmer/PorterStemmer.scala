@@ -1,5 +1,7 @@
 package com.github.aztek.porterstemmer
 
+import com.github.aztek.porterstemmer.PorterStemmer
+
 /**
  * Scala implementation of Porter's stemming algorithm.
  *

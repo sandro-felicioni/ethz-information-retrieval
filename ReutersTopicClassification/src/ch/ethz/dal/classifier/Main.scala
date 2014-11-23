@@ -13,7 +13,7 @@ object Main {
     
     val watch = new StopWatch()
     watch.start
-    var bayesClassifier = new NaiveBayesClassifier(training_set, 1)
+    var bayesClassifier = new NaiveBayesClassifier(training_set, 3, 1, true, false)
     bayesClassifier.training
     watch.stop
     println("training time = " + watch.stopped)
