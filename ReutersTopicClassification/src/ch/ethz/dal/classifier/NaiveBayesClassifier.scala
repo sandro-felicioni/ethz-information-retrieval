@@ -18,6 +18,9 @@ class NaiveBayesClassifier(datasetPath: String, maxDocuments: Int) {
 
   /* normalization constant per class (stored separately due to smoothing)*/
   var numWordsPerClass = Map[String, Int]()
+  
+  /* the vocabulary that is used */
+  var vocabulary = Set[String]()
 
   private def computeClassProbabilities() = {
     val topicCounts = collection.mutable.Map[String, Int]()
@@ -31,9 +34,6 @@ class NaiveBayesClassifier(datasetPath: String, maxDocuments: Int) {
 
     topics = classProbabilities.keys
 
-    for ((topic, probability) <- classProbabilities) {
-      // println(topic + ": " + probability)
-    }
     println("Number of documents: " + numDocuments)
     println("Number of topics: " + classProbabilities.keys.size)
     println("Computed class probabilities P(c)")
@@ -47,6 +47,7 @@ class NaiveBayesClassifier(datasetPath: String, maxDocuments: Int) {
     for (doc <- documentIterator) {
       val docLength = doc.tokens.size
       val termFrequency = doc.tokens.groupBy(identity).mapValues(valueList => valueList.length)
+      vocabulary  ++= termFrequency.keySet
 
       for (topic <- doc.topics) {
         var conditionalProbability = conditionalProbabilities.get(topic).get
@@ -57,17 +58,17 @@ class NaiveBayesClassifier(datasetPath: String, maxDocuments: Int) {
      println("Computed conditional probabilities P(w|c)")
   }
 
-  private def predictTopicsForDocument(doc: ReutersRCVParse, threshold: Double): Set[String] = {
+  private def predictTopicsForDocument(doc: ReutersRCVParse): Set[String] = {
     val termFrequency = doc.tokens.groupBy(identity).mapValues(valueList => valueList.length)
     
     var priorityQueue = new collection.mutable.PriorityQueue[(String, Double)]()(Ordering.by(score => -score._2))
     for (topic <- topics) {
-    	var score = classProbabilities.get(topic).get
+    	var score = log2(classProbabilities.get(topic).get)
     	val conditionalProbability = conditionalProbabilities.get(topic).get
-    	val numWords = numWordsPerClass.get(topic).get
+    	val numWords = numWordsPerClass.get(topic).get.toDouble
     	
     	for (term <- termFrequency.keys){
-    	  score += conditionalProbability.getOrElse(term, 0) * log2((conditionalProbability.getOrElse(term, 0) / numWords.toDouble))
+    	  score += termFrequency.get(term).get * log2(( (1 + conditionalProbability.getOrElse(term, 0)) / (numWords + vocabulary.size) ))
     	}
     	
     	if(priorityQueue.size < maxDocuments || score > priorityQueue.head._2){
@@ -97,11 +98,10 @@ class NaiveBayesClassifier(datasetPath: String, maxDocuments: Int) {
   }
 
   def predict(testsetPath: String) : Map[Int, Set[String]] = {
-    val threshold = 0.2
     var documentClassifications = Map[Int, Set[String]]()
     val documentIterator = new ReutersCorpusIterator(testsetPath)
     for (doc <- documentIterator) {
-      val documentClassification = predictTopicsForDocument(doc, threshold)
+      val documentClassification = predictTopicsForDocument(doc)
       documentClassifications += ((doc.ID, documentClassification))
     }
     
