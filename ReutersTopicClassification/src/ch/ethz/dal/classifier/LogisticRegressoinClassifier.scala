@@ -36,10 +36,10 @@ class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha
 
   private def predictTopicsForDocument(doc: ReutersRCVParse): Set[String] = {
     var classifiedTopcis = new ListBuffer[String]()
+	var x = extractFeatures(doc).toDenseVector
     for (topic <- topics.keys) {
       val topic_idx = topics.get(topic).get
       var w = weightVectors(::, topic_idx)
-      var x = extractFeatures(doc).toDenseVector
       
       if (logistic(w, x) > 0.5){
         classifiedTopcis += topic
@@ -129,10 +129,12 @@ class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha
    *  Note also that the this method expects the label y to be element of {-1, 1}!
    */
   private def gradient(w: DenseVector[Double], x: DenseVector[Double], y: Double): DenseVector[Double] = {
+    //TODO check if gradient is correct!
+    
     val scalar = (-y) / (1 + scala.math.exp(-y * (w dot x)))
     return x * scalar
   }
-
+  
   /**
    * Evaluates the standard logistic loss function for a given weight vector w and data sample x.
    * It computes the probability that the sample belongs to the class.
@@ -141,21 +143,13 @@ class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha
     return 1 / (1 + scala.math.exp(-(w dot x)))
   }
 
-  def training() = {
-    retrieveTopicsAndVocabulary()
-    extractTrainingData()
-
-    // train
-    println("Start training:")
-    weightVectors = DenseMatrix.zeros[Double](X_train.rows, topics.size)
-    for ((topic, count) <- topics.keys.toList zip Stream.from(1)) {
-      val topic_idx = topics.get(topic).get
+  private def train(topic_idx: Int) : Unit = {
       var w = weightVectors(::, topic_idx)
       var eta: Double = 1
 
       // one pass through the data
       var generator = new Random()
-      for (t <- Range(0, numTrainingSamples * 1)) {
+      for (t <- Range(0, (numTrainingSamples * 0.5).toInt)) {
         val idx = generator.nextInt(numTrainingSamples)
         val x = extractColumn(X_train, idx);
         val y = Y_train(topic_idx, idx)
@@ -163,9 +157,18 @@ class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha
       }
 
       weightVectors(::, topic_idx) := w
-      println("trained: " + (count) + "/" + topics.size)
-    }
+      println("trained: " + topic_idx)
+  }
+  
+  def training() = {
+    retrieveTopicsAndVocabulary()
+    extractTrainingData()
 
+    // train
+    println("Start training:")
+    weightVectors = DenseMatrix.zeros[Double](X_train.rows, topics.size)
+    Range(0, topics.size).par.foreach(topic_idx => train(topic_idx))
+    
     // stop words removal
     // smoothing? hard to implement..
     // stemming
@@ -176,9 +179,13 @@ class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha
   def predict(testsetPath: String): Map[Int, Set[String]] = {
     var documentClassifications = Map[Int, Set[String]]()
     val documentIterator = new ReutersCorpusIterator(testsetPath)
-    for (doc <- documentIterator) {
+    for ( (doc, count) <- documentIterator.take(10000).zipWithIndex) {
       val documentClassification = predictTopicsForDocument(doc)
       documentClassifications += ((doc.ID, documentClassification))
+      
+      if ((count + 1) % 1000 == 0){
+        println("classified: " + (count + 1))
+      }
     }
 
     return documentClassifications
