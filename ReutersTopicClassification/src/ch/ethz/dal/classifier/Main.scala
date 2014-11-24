@@ -10,15 +10,22 @@ object Main {
     val rootPath = "./reuters-dataset"
     val training_set = rootPath + "/train"
     val validation_set = rootPath + "/test-with-labels"
+    val classifierToUse = "lg"
+      
+    var classifier : AbstractClassifier = null
+    if (classifierToUse == "nb"){
+      classifier = new NaiveBayesClassifier(training_set, 3, 1, true, false)
+    }else if( classifierToUse == "lg"){
+      classifier = new LogisticRegressionClassifier(training_set, 3, 1, true, false)
+    }
     
     val watch = new StopWatch()
     watch.start
-    var bayesClassifier = new NaiveBayesClassifier(training_set, 3, 1, true, false)
-    bayesClassifier.training
+    classifier.training
     watch.stop
     println("training time = " + watch.stopped)
     
-    var documentClassifications = bayesClassifier.predict(validation_set)
+    var documentClassifications = classifier.predict(validation_set)
     val validationIterator = new ReutersCorpusIterator(validation_set)
     val scores = new Scores()
     for(document <- validationIterator){
