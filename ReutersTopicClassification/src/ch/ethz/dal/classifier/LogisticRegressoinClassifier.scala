@@ -1,18 +1,17 @@
 package ch.ethz.dal.classifier
 
-import ch.ethz.dal.processing.ReutersCorpusIterator
 import scala.collection
-import ch.ethz.dal.processing.ReutersRCVParse
-import scala.collection.mutable.ListBuffer
-import scala.collection.mutable.ListBuffer
-import com.github.aztek.porterstemmer.PorterStemmer
-import breeze.linalg.DenseVector
-import breeze.linalg.DenseMatrix
-import sun.awt.X11.XTextAreaPeer
-import breeze.linalg.SparseVector
-import breeze.linalg.VectorBuilder
-import breeze.linalg.CSCMatrix
 import scala.collection.immutable.Range
+import scala.util.Random
+import com.github.aztek.porterstemmer.PorterStemmer
+import breeze.linalg.CSCMatrix
+import breeze.linalg.DenseMatrix
+import breeze.linalg.DenseVector
+import breeze.linalg.SparseVector
+import ch.ethz.dal.processing.ReutersCorpusIterator
+import ch.ethz.dal.processing.ReutersRCVParse
+import breeze.linalg.VectorBuilder
+import scala.collection.mutable.ListBuffer
 
 class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha: Int, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier {
 
@@ -33,10 +32,21 @@ class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha
   var X_train: CSCMatrix[Double] = null
 
   /* lxn matrix where l = number of topics/labels and n = number of samples */
-  var Y_train: DenseMatrix[Double] = null
+  var Y_train: DenseMatrix[Int] = null
 
   private def predictTopicsForDocument(doc: ReutersRCVParse): Set[String] = {
-    return Set[String]()
+    var classifiedTopcis = new ListBuffer[String]()
+    for (topic <- topics.keys) {
+      val topic_idx = topics.get(topic).get
+      var w = weightVectors(::, topic_idx)
+      var x = extractFeatures(doc).toDenseVector
+      
+      if (logistic(w, x) > 0.5){
+        classifiedTopcis += topic
+      }
+    }
+
+    return classifiedTopcis.toSet
   }
 
   private def getCleanTokens(tokens: List[String]): List[String] = {
@@ -56,7 +66,7 @@ class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha
     var tempVocabulary = collection.mutable.Set[String]()
 
     val documentIterator = new ReutersCorpusIterator(datasetPath)
-    for (doc <- documentIterator) {
+    for (doc <- documentIterator.take(10000)) {
       tempTopics ++= doc.topics
       tempVocabulary ++= doc.tokens
       numTrainingSamples += 1
@@ -70,19 +80,34 @@ class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha
     println("topics retrieved and vocabulary size fixed")
   }
 
+  private def extractFeatures(doc: ReutersRCVParse): VectorBuilder[Double] = {
+    var tf = doc.tokens.groupBy(identity).mapValues(valueList => valueList.length)
+    val vectorBuilder = new VectorBuilder[Double](vocabulary.size)
+    for ((term, frequency) <- tf) {
+      val term_idx = vocabulary.getOrElse(term, -1) // index of term in dictionary or -1 if not present
+      if(term_idx != -1){
+        vectorBuilder.add(term_idx, frequency)
+      }
+    }
+    return vectorBuilder
+  }
+
   private def extractTrainingData(): Unit = {
     var doc_idx = 0
-    Y_train = DenseMatrix.fill(rows = topics.size, cols = numTrainingSamples)(-1)
+    Y_train = DenseMatrix.fill(rows = topics.size, cols = numTrainingSamples)(-1) // -1 => has not label and 1 => has label
     val matrixBuilder = new CSCMatrix.Builder[Double](rows = vocabulary.size, cols = numTrainingSamples)
     val documentIterator = new ReutersCorpusIterator(datasetPath)
-    for (doc <- documentIterator) {
-      
+    for (doc <- documentIterator.take(10000)) {
+
       // extract features
-      var tf = doc.tokens.groupBy(identity).mapValues(valueList => valueList.length)
-      for ((term, frequency) <- tf) {
-        val term_idx = vocabulary.getOrElse(term, -1) // index of term in dictionary or -1 if not present
-        matrixBuilder.add(term_idx, doc_idx, frequency)
+      for( (feature_idx, feature_value) <- extractFeatures(doc).activeIterator){
+        matrixBuilder.add(feature_idx, doc_idx, feature_value)
       }
+//      var tf = doc.tokens.groupBy(identity).mapValues(valueList => valueList.length)
+//      for ((term, frequency) <- tf) {
+//        val term_idx = vocabulary.getOrElse(term, -1) // index of term in dictionary or -1 if not present
+//        matrixBuilder.add(term_idx, doc_idx, frequency)
+//      }
 
       // extract labels
       for (topic <- doc.topics) {
@@ -91,22 +116,61 @@ class LogisticRegressionClassifier(datasetPath: String, maxDocuments: Int, alpha
       }
       doc_idx += 1
     }
-    
+
     // create spare matrix in order to not waste memory
     X_train = matrixBuilder.result
+
+    println("Training data extracted - numSamples = " + doc_idx + " numFeatures = " + X_train.rows)
+  }
+
+  /**
+   *  Computes the gradient of the negative log-logistic loss function: l(w; x, y) = 1 + exp(-y * w^x)
+   *  Note that due to the limits of breeze we always have to compute vector * scalar. Vice versa doesn't compile!
+   *  Note also that the this method expects the label y to be element of {-1, 1}!
+   */
+  private def gradient(w: DenseVector[Double], x: DenseVector[Double], y: Double): DenseVector[Double] = {
+    val scalar = (-y) / (1 + scala.math.exp(-y * (w dot x)))
+    return x * scalar
+  }
+
+  /**
+   * Evaluates the standard logistic loss function for a given weight vector w and data sample x.
+   * It computes the probability that the sample belongs to the class.
+   */
+  private def logistic(w: DenseVector[Double], x: DenseVector[Double]): Double = {
+    return 1 / (1 + scala.math.exp(-(w dot x)))
   }
 
   def training() = {
     retrieveTopicsAndVocabulary()
     extractTrainingData()
-    
-    
-    // initialize weight vectors
-    // weightVectors = DenseMatrix.zeros[Double](X_train.cols, topics.size)
+
+    // train
+    println("Start training:")
+    weightVectors = DenseMatrix.zeros[Double](X_train.rows, topics.size)
+    for ((topic, count) <- topics.keys.toList zip Stream.from(1)) {
+      val topic_idx = topics.get(topic).get
+      var w = weightVectors(::, topic_idx)
+      var eta: Double = 1
+
+      // one pass through the data
+      var generator = new Random()
+      for (t <- Range(0, numTrainingSamples * 1)) {
+        val idx = generator.nextInt(numTrainingSamples)
+        val x = extractColumn(X_train, idx);
+        val y = Y_train(topic_idx, idx)
+        w = w - gradient(w, x, y) * (eta / t)
+      }
+
+      weightVectors(::, topic_idx) := w
+      println("trained: " + (count) + "/" + topics.size)
+    }
 
     // stop words removal
     // smoothing? hard to implement..
     // stemming
+    // weight cost function to counteract imbalanced data
+    // add intercept feature
   }
 
   def predict(testsetPath: String): Map[Int, Set[String]] = {

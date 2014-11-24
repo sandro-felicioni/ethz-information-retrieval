@@ -28,7 +28,7 @@ object Main {
     var documentClassifications = classifier.predict(validation_set)
     val validationIterator = new ReutersCorpusIterator(validation_set)
     val scores = new Scores()
-    for(document <- validationIterator){
+    for(document <- validationIterator.take(10000)){
       val predictedTopics = documentClassifications.get(document.ID).get
       val trueTopics = document.topics
       scores.addScores(predictedTopics, trueTopics)
