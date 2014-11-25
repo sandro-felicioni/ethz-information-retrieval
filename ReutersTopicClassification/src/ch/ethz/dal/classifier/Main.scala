@@ -16,7 +16,7 @@ object Main {
     if (classifierToUse == "nb"){
       classifier = new NaiveBayesClassifier(training_set, 3, 1, true, false)
     }else if( classifierToUse == "lg"){
-      classifier = new LogisticRegressionClassifier(training_set, 3, 1, true, false)
+      classifier = new LogisticRegressionClassifier(training_set, threshold=0.5, true, false)
     }
     
     val watch = new StopWatch()
@@ -28,7 +28,7 @@ object Main {
     var documentClassifications = classifier.predict(validation_set)
     val validationIterator = new ReutersCorpusIterator(validation_set)
     val scores = new Scores()
-    for(document <- validationIterator.take(10000)){
+    for(document <- validationIterator.take(100000)){
       val predictedTopics = documentClassifications.get(document.ID).get
       val trueTopics = document.topics
       scores.addScores(predictedTopics, trueTopics)
