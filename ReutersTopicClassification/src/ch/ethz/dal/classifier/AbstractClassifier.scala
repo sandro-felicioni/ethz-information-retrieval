@@ -2,6 +2,7 @@ package ch.ethz.dal.classifier
 
 import breeze.linalg.DenseVector
 import breeze.linalg.CSCMatrix
+import breeze.linalg.SparseVector
 
 abstract class AbstractClassifier {
 
@@ -11,8 +12,8 @@ abstract class AbstractClassifier {
   }
 
   /** Since breeze's CSC doesn't provide a method to extract/slice one single column I created an own method */
-  def extractColumn(sparseMatrix: CSCMatrix[Double], columnIndex: Int): DenseVector[Double] = {
-    val column = DenseVector.zeros[Double](sparseMatrix.rows)
+  def extractColumn(sparseMatrix: CSCMatrix[Double], columnIndex: Int): SparseVector[Double] = {
+	val column = SparseVector.zeros[Double](sparseMatrix.rows)
 
     val startIndex = sparseMatrix.colPtrs(columnIndex)
     val endIndex = sparseMatrix.colPtrs(columnIndex + 1)

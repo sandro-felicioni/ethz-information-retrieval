@@ -36,7 +36,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
 
   private def predictTopicsForDocument(doc: ReutersRCVParse): Set[String] = {
     var classifiedTopcis = new ListBuffer[String]()
-    var x = extractFeatures(doc).toDenseVector
+    var x = extractFeatures(doc).toSparseVector
     for (topic <- topics.keys) {
       val topic_idx = topics.get(topic).get
       var w = weightVectors(::, topic_idx)
@@ -103,11 +103,6 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
       for ((feature_idx, feature_value) <- extractFeatures(doc).activeIterator) {
         matrixBuilder.add(feature_idx, doc_idx, feature_value)
       }
-      //      var tf = doc.tokens.groupBy(identity).mapValues(valueList => valueList.length)
-      //      for ((term, frequency) <- tf) {
-      //        val term_idx = vocabulary.getOrElse(term, -1) // index of term in dictionary or -1 if not present
-      //        matrixBuilder.add(term_idx, doc_idx, frequency)
-      //      }
 
       // extract labels
       for (topic <- doc.topics) {
@@ -128,7 +123,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
    *  Note that due to the limits of breeze we always have to compute vector * scalar. Vice versa doesn't compile!
    *  Note also that the this method expects the label y to be element of {-1, 1}!
    */
-  private def gradient(w: DenseVector[Double], x: DenseVector[Double], y: Double, alphaPlus: Double, alphaMinus: Double): DenseVector[Double] = {
+  private def gradient(w: DenseVector[Double], x: SparseVector[Double], y: Double, alphaPlus: Double, alphaMinus: Double): SparseVector[Double] = {
     var scalar = (-y) / (1 + scala.math.exp(y * (w dot x)))
     scalar = if(y == 1) alphaMinus * scalar else alphaPlus * scalar  // weight the gradients to handle imbalanced data 
     return x * scalar
@@ -138,7 +133,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
    * Evaluates the standard logistic loss function for a given weight vector w and data sample x.
    * It computes the probability that the sample belongs to the class.
    */
-  private def logistic(w: DenseVector[Double], x: DenseVector[Double]): Double = {
+  private def logistic(w: DenseVector[Double], x: SparseVector[Double]): Double = {
     return 1 / (1 + scala.math.exp(-(w dot x)))
   }
 
@@ -158,7 +153,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
       val idx = generator.nextInt(numTrainingSamples)
       val x = extractColumn(X_train, idx);
       val y = Y_train(topic_idx, idx)
-      w = w - gradient(w, x, y, alphaPlus, alphaMinus) * (eta / t)
+      w = w - gradient(w, x, y, alphaPlus, alphaMinus).toDenseVector * (eta / t)
 
       //if (t % 1000 == 0) {
       //  testTrainingError(topic_idx, w)
