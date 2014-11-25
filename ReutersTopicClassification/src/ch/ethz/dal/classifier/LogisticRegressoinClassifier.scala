@@ -14,76 +14,94 @@ import breeze.linalg.VectorBuilder
 import scala.collection.mutable.ListBuffer
 import breeze.linalg.StorageVector
 
-class LogisticRegressionClassifier(datasetPath: String, threshold: Double, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier {
+class LogisticRegressionClassifier(datasetPath: String, threshold: Double, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier(removeStopwords, useStemming) {
 
-  val stopwords = Set("", "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't", "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing", "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't", "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers", "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in", "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my", "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our", "ours	ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's", "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs", "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're", "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't", "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's", "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't", "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves", "a's", "able", "about", "above", "according", "accordingly", "across", "actually", "after", "afterwards", "again", "against", "ain't", "all", "allow", "allows", "almost", "alone", "along", "already", "also", "although", "always", "am", "among", "amongst", "an", "and", "another", "any", "anybody", "anyhow", "anyone", "anything", "anyway", "anyways", "anywhere", "apart", "appear", "appreciate", "appropriate", "are", "aren't", "around", "as", "aside", "ask", "asking", "associated", "at", "available", "away", "awfully", "be", "became", "because", "become", "becomes", "becoming", "been", "before", "beforehand", "behind", "being", "believe", "below", "beside", "besides", "best", "better", "between", "beyond", "both", "brief", "but", "by", "c'mon", "c's", "came", "can", "can't", "cannot", "cant", "cause", "causes", "certain", "certainly", "changes", "clearly", "co", "com", "come", "comes", "concerning", "consequently", "consider", "considering", "contain", "containing", "contains", "corresponding", "could", "couldn't", "course", "currently", "definitely", "described", "despite", "did", "didn't", "different", "do", "does", "doesn't", "doing", "don't", "done", "down", "downwards", "during", "each", "edu", "eg", "eight", "either", "else", "elsewhere", "enough", "entirely", "especially", "et", "etc", "even", "ever", "every", "everybody", "everyone", "everything", "everywhere", "ex", "exactly", "example", "except", "far", "few", "fifth", "first", "five", "followed", "following", "follows", "for", "former", "formerly", "forth", "four", "from", "further", "furthermore", "get", "gets", "getting", "given", "gives", "go", "goes", "going", "gone", "got", "gotten", "greetings", "had", "hadn't", "happens", "hardly", "has", "hasn't", "have", "haven't", "having", "he", "he's", "hello", "help", "hence", "her", "here", "here's", "hereafter", "hereby", "herein", "hereupon", "hers", "herself", "hi", "him", "himself", "his", "hither", "hopefully", "how", "howbeit", "however", "i'd", "i'll", "i'm", "i've", "ie", "if", "ignored", "immediate", "in", "inasmuch", "inc", "indeed", "indicate", "indicated", "indicates", "inner", "insofar", "instead", "into", "inward", "is", "isn't", "it", "it'd", "it'll", "it's", "its", "itself", "just", "keep", "keeps", "kept", "know", "known", "knows", "last", "lately", "later", "latter", "latterly", "least", "less", "lest", "let", "let's", "like", "liked", "likely", "little", "look", "looking", "looks", "ltd", "mainly", "many", "may", "maybe", "me", "mean", "meanwhile", "merely", "might", "more", "moreover", "most", "mostly", "much", "must", "my", "myself", "name", "namely", "nd", "near", "nearly", "necessary", "need", "needs", "neither", "never", "nevertheless", "new", "next", "nine", "no", "nobody", "non", "none", "noone", "nor", "normally", "not", "nothing", "novel", "now", "nowhere", "obviously", "of", "off", "often", "oh", "ok", "okay", "old", "on", "once", "one", "ones", "only", "onto", "or", "other", "others", "otherwise", "ought", "our", "ours", "ourselves", "out", "outside", "over", "overall", "own", "particular", "particularly", "per", "perhaps", "placed", "please", "plus", "possible", "presumably", "probably", "provides", "que", "quite", "qv", "rather", "rd", "re", "really", "reasonably", "regarding", "regardless", "regards", "relatively", "respectively", "right", "said", "same", "saw", "say", "saying", "says", "second", "secondly", "see", "seeing", "seem", "seemed", "seeming", "seems", "seen", "self", "selves", "sensible", "sent", "serious", "seriously", "seven", "several", "shall", "she", "should", "shouldn't", "since", "six", "so", "some", "somebody", "somehow", "someone", "something", "sometime", "sometimes", "somewhat", "somewhere", "soon", "sorry", "specified", "specify", "specifying", "still", "sub", "such", "sup", "sure", "t's", "take", "taken", "tell", "tends", "th", "than", "thank", "thanks", "thanx", "that", "that's", "thats", "the", "their", "theirs", "them", "themselves", "then", "thence", "there", "there's", "thereafter", "thereby", "therefore", "therein", "theres", "thereupon", "these", "they", "they'd", "they'll", "they're", "they've", "think", "third", "this", "thorough", "thoroughly", "those", "though", "three", "through", "throughout", "thru", "thus", "to", "together", "too", "took", "toward", "towards", "tried", "tries", "truly", "try", "trying", "twice", "two", "un", "under", "unfortunately", "unless", "unlikely", "until", "unto", "up", "upon", "us", "use", "used", "useful", "uses", "using", "usually", "value", "various", "very", "via", "viz", "vs", "want", "wants", "was", "wasn't", "way", "we", "we'd", "we'll", "we're", "we've", "welcome", "well", "went", "were", "weren't", "what", "what's", "whatever", "when", "whence", "whenever", "where", "where's", "whereafter", "whereas", "whereby", "wherein", "whereupon", "wherever", "whether", "which", "while", "whither", "who", "who's", "whoever", "whole", "whom", "whose", "why", "will", "willing", "wish", "with", "within", "without", "won't", "wonder", "would", "wouldn't", "yes", "yet", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself", "yourselves", "zero")
-
-  /* All topics that are available */
+  /** A map which stores the matrix indices for each topic */
   var topics = Map[String, Int]()
-
-  /* the vocabulary that is used */
+  
   var vocabulary = Map[String, Int]()
 
+  /** total number of documents that are used to build the vocabulary and topic set*/ 
+  var numDocuments: Int = 0
+  
+  /** the number of effective training set size that is used during training */
   var numTrainingSamples: Int = 0
   
   var numFeatures: Int = 0
 
-  /* each column is a weight vector w for a topic that is available  */
+  /** each column is a weight vector w for a topic that is available  */
   var weightVectors: DenseMatrix[Double] = null
 
-  /* this map stores for each document a sparse vector */
+  /** this map stores for each document a sparse vector */
   var X_train = new collection.mutable.HashMap[Int, SparseVector[Double]]()
 
-  /* lxn matrix where l = number of topics/labels and n = number of samples */
+  /** lxn matrix where l = number of topics/labels and n = number of samples */
   var Y_train: DenseMatrix[Int] = null
 
-  private def predictTopicsForDocument(doc: ReutersRCVParse): Set[String] = {
-    var classifiedTopcis = new ListBuffer[String]()
-    var x = extractFeatures(doc).toSparseVector
-    for (topic <- topics.keys) {
-      val topic_idx = topics.get(topic).get
-      var w = weightVectors(::, topic_idx)
+  def training() = {
+    retrieveTopicsAndVocabulary()
+    extractTrainingData()
 
-      if (logistic(w, x) > 0.5) {
-        classifiedTopcis += topic
-      }
-    }
+    // train
+    println("Start training:")
+    Range(0, topics.size).par.foreach(topic_idx => trainTopic(topic_idx))
 
-    return classifiedTopcis.toSet
+    // stemming
+    // add intercept feature
+    // normalization of bow with N or use tf-idf score instead
   }
-
-  private def getCleanTokens(tokens: List[String]): List[String] = {
-    var cleanTokens = tokens.map(token => token.toLowerCase())
-    if (removeStopwords) {
-      cleanTokens = cleanTokens.filter(token => token.length() > 2 && !stopwords.contains(token))
-    }
-    if (useStemming) {
-      cleanTokens = cleanTokens.map(token => PorterStemmer.stem(token))
-    }
-    return cleanTokens
-  }
-
+  
   private def retrieveTopicsAndVocabulary(): Unit = {
     // retrieve all topics and fix the vocabulary
     var tempTopics = collection.mutable.Set[String]()
     var tempVocabulary = collection.mutable.Set[String]()
 
     val documentIterator = new ReutersCorpusIterator(datasetPath)
-    for (doc <- documentIterator.take(100000)) {
+    for (doc <- documentIterator.take(50000)) {
       tempTopics ++= doc.topics
       tempVocabulary ++= getCleanTokens(doc.tokens)
-      numTrainingSamples += 1
+      numDocuments  += 1
     }
     vocabulary = tempVocabulary.zipWithIndex.map({ case (term, index) => term -> index }).toMap
     topics = tempTopics.zipWithIndex.map({ case (topic, index) => topic -> index }).toMap
 
-    println("num samples: " + numTrainingSamples)
+    println("num documents: " + numDocuments)
     println("num topics: " + topics.size)
     println("dictionary size: " + vocabulary.size)
     println("topics retrieved and vocabulary size fixed")
-  }
+  }  
+  
+  private def extractTrainingData(): Unit = {
+    
+    // pre-allocate maximal label matrix
+    Y_train = DenseMatrix.fill(rows = topics.size, cols = numDocuments)(-1) // -1 => has not label and 1 => has label
+    
+    var doc_idx = 0
+    val documentIterator = new ReutersCorpusIterator(datasetPath)
+    for (doc <- documentIterator.take(50000)) {
 
-  private def extractFeatures(doc: ReutersRCVParse): VectorBuilder[Double] = {
+      // extract features
+      X_train += (doc_idx -> extractFeaturesForDocument(doc).toSparseVector)
+
+      // extract labels
+      for (topic <- doc.topics) {
+        val topic_idx = topics.get(topic).get
+        Y_train(topic_idx, doc_idx) = 1
+      }
+      doc_idx += 1
+    }
+    numTrainingSamples = doc_idx
+    
+    // assign Y the correct dimensions of the label matrix
+    Y_train = Y_train(::, 0 to numTrainingSamples)
+    
+    // initialize weight vectors with correct dimensions
+    weightVectors = DenseMatrix.zeros[Double](numFeatures, topics.size)
+    
+    println("Training data extracted - numSamples = " + numTrainingSamples  + " numFeatures = " + numFeatures )
+  }
+  
+  private def extractFeaturesForDocument(doc: ReutersRCVParse): VectorBuilder[Double] = {
     var tf = getCleanTokens(doc.tokens).groupBy(identity).mapValues(valueList => valueList.length)
     val vectorBuilder = new VectorBuilder[Double](vocabulary.size)
     for ((term, frequency) <- tf) {
@@ -95,29 +113,31 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     
     numFeatures = vectorBuilder.size
     return vectorBuilder
-  }
+  }  
 
-  private def extractTrainingData(): Unit = {
-    var doc_idx = 0
-    Y_train = DenseMatrix.fill(rows = topics.size, cols = numTrainingSamples)(-1) // -1 => has not label and 1 => has label
-    val matrixBuilder = new CSCMatrix.Builder[Double](rows = vocabulary.size, cols = numTrainingSamples)
-    val documentIterator = new ReutersCorpusIterator(datasetPath)
-    for (doc <- documentIterator.take(100000)) {
+  private def trainTopic(topic_idx: Int): Unit = {
+    var w = SparseVector.zeros[Double](numFeatures)
+    var eta: Double = 1
+    
+    // compute weights due to imbalanced data
+    val numPositive = (Y_train(topic_idx, ::).t :== 1).activeSize
+    val numNegative = (Y_train(topic_idx, ::).t :== -1).activeSize
+    val alphaPlus = numPositive/numTrainingSamples.toDouble
+    val alphaMinus = numNegative/numTrainingSamples .toDouble
 
-      // extract features
-      X_train += (doc_idx -> extractFeatures(doc).toSparseVector)
-
-      // extract labels
-      for (topic <- doc.topics) {
-        val topic_idx = topics.get(topic).get
-        Y_train(topic_idx, doc_idx) = 1
-      }
-      doc_idx += 1
+    // one pass through the data
+    var generator = new Random()
+    for (t <- Range(1, 30000) ) {
+      val idx = generator.nextInt(numTrainingSamples)
+      val x = X_train.get(idx).get
+      val y = Y_train(topic_idx, idx)
+      w = w - gradient(w, x, y, alphaPlus, alphaMinus) * (eta / t)
     }
 
-    println("Training data extracted - numSamples = " + doc_idx + " numFeatures = " + numFeatures )
+    weightVectors(::, topic_idx) := w
+    println("topic trained")
   }
-
+  
   /**
    *  Computes the gradient of the negative log-logistic loss function: l(w; x, y) = 1 + exp(-y * w^x)
    *  Note that due to the limits of breeze we always have to compute vector * scalar. Vice versa doesn't compile!
@@ -135,36 +155,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
    */
   private def logistic(w: StorageVector[Double], x: SparseVector[Double]): Double = {
     return 1 / (1 + scala.math.exp(-(w dot x)))
-  }
-
-  private def train(topic_idx: Int): Unit = {
-//    var w = weightVectors(::, topic_idx)
-    var w = SparseVector.zeros[Double](numFeatures)
-    var eta: Double = 1
-    
-    // compute weights due to imbalanced data
-    val numPositive = (Y_train(topic_idx, ::).t :== 1).activeSize
-    val numNegative = (Y_train(topic_idx, ::).t :== -1).activeSize
-    val alphaPlus = numPositive/numTrainingSamples.toDouble
-    val alphaMinus = numNegative/numTrainingSamples .toDouble
-
-    // one pass through the data
-    var generator = new Random()
-    for (t <- Range(1, 30000) ) {
-      val idx = generator.nextInt(numTrainingSamples)
-      // val x = extractColumn(X_train, idx);
-      val x = X_train.get(idx).get
-      val y = Y_train(topic_idx, idx)
-      w = w - gradient(w, x, y, alphaPlus, alphaMinus) * (eta / t)
-      
-//      if (t % 5000 == 0) {
-//        testTrainingError(topic_idx, w)
-//      }
-    }
-
-    weightVectors(::, topic_idx) := w
-    println("topic trained")
-  }
+  }  
 
   /**
    * A help method to test whether we improve on the training set during the learning process.
@@ -203,21 +194,6 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     println("TP rate = " + TPRate + " ("+ truePositive + "/" + numPositives + ") TN rate = " + TNRate+ " ("+ trueNegative + "/" + numNegatives + ")")
   }
 
-  def training() = {
-    retrieveTopicsAndVocabulary()
-    extractTrainingData()
-
-    // train
-    println("Start training:")
-    weightVectors = DenseMatrix.zeros[Double](numFeatures, topics.size)
-    Range(0, topics.size).par.foreach(topic_idx => train(topic_idx))
-
-    // stop words removal
-    // stemming
-    // weight cost function to counteract imbalanced data
-    // add intercept feature
-  }
-
   def predict(testsetPath: String): Map[Int, Set[String]] = {
     var documentClassifications = Map[Int, Set[String]]()
     val documentIterator = new ReutersCorpusIterator(testsetPath)
@@ -232,4 +208,18 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
 
     return documentClassifications
   }
+  
+  private def predictTopicsForDocument(doc: ReutersRCVParse): Set[String] = {
+    var classifiedTopcis = new ListBuffer[String]()
+    var x = extractFeaturesForDocument(doc).toSparseVector
+    for (topic <- topics.keys) {
+      val topic_idx = topics.get(topic).get
+      var w = weightVectors(::, topic_idx)
+
+      if (logistic(w, x) > 0.5) {
+        classifiedTopcis += topic
+      }
+    }
+    return classifiedTopcis.toSet
+  }  
 }
