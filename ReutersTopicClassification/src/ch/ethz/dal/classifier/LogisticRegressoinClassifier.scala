@@ -93,7 +93,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     numTrainingSamples = doc_idx
     
     // assign Y the correct dimensions of the label matrix
-    Y_train = Y_train(::, 0 to numTrainingSamples)
+    Y_train = Y_train(::, 0 to numTrainingSamples-1)
     
     // initialize weight vectors with correct dimensions
     weightVectors = DenseMatrix.zeros[Double](numFeatures, topics.size)
@@ -103,13 +103,16 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
   
   private def extractFeaturesForDocument(doc: ReutersRCVParse): VectorBuilder[Double] = {
     var tf = getCleanTokens(doc.tokens).groupBy(identity).mapValues(valueList => valueList.length)
-    val vectorBuilder = new VectorBuilder[Double](vocabulary.size)
+    val vectorBuilder = new VectorBuilder[Double](vocabulary.size + 1)
     for ((term, frequency) <- tf) {
       val term_idx = vocabulary.getOrElse(term, -1) // index of term in dictionary or -1 if not present
       if (term_idx != -1) {
-        vectorBuilder.add(term_idx, frequency)
+        vectorBuilder.add(term_idx, frequency / vocabulary.size.toDouble)
       }
     }
+    
+    // add intercept as last element
+    vectorBuilder.add(vectorBuilder.size - 1, 1)
     
     numFeatures = vectorBuilder.size
     return vectorBuilder
