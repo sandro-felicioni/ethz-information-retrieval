@@ -12,6 +12,7 @@ import ch.ethz.dal.processing.ReutersCorpusIterator
 import ch.ethz.dal.processing.ReutersRCVParse
 import breeze.linalg.VectorBuilder
 import scala.collection.mutable.ListBuffer
+import breeze.linalg.StorageVector
 
 class LogisticRegressionClassifier(datasetPath: String, threshold: Double, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier {
 
@@ -24,12 +25,14 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
   var vocabulary = Map[String, Int]()
 
   var numTrainingSamples: Int = 0
+  
+  var numFeatures: Int = 0
 
   /* each column is a weight vector w for a topic that is available  */
   var weightVectors: DenseMatrix[Double] = null
 
-  /* kxn matrix where k = number of features and n = number of samples*/
-  var X_train: CSCMatrix[Double] = null
+  /* this map stores for each document a sparse vector */
+  var X_train = new collection.mutable.HashMap[Int, SparseVector[Double]]()
 
   /* lxn matrix where l = number of topics/labels and n = number of samples */
   var Y_train: DenseMatrix[Int] = null
@@ -68,7 +71,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     val documentIterator = new ReutersCorpusIterator(datasetPath)
     for (doc <- documentIterator.take(100000)) {
       tempTopics ++= doc.topics
-      tempVocabulary ++= doc.tokens
+      tempVocabulary ++= getCleanTokens(doc.tokens)
       numTrainingSamples += 1
     }
     vocabulary = tempVocabulary.zipWithIndex.map({ case (term, index) => term -> index }).toMap
@@ -81,7 +84,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
   }
 
   private def extractFeatures(doc: ReutersRCVParse): VectorBuilder[Double] = {
-    var tf = doc.tokens.groupBy(identity).mapValues(valueList => valueList.length)
+    var tf = getCleanTokens(doc.tokens).groupBy(identity).mapValues(valueList => valueList.length)
     val vectorBuilder = new VectorBuilder[Double](vocabulary.size)
     for ((term, frequency) <- tf) {
       val term_idx = vocabulary.getOrElse(term, -1) // index of term in dictionary or -1 if not present
@@ -89,6 +92,8 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
         vectorBuilder.add(term_idx, frequency)
       }
     }
+    
+    numFeatures = vectorBuilder.size
     return vectorBuilder
   }
 
@@ -100,9 +105,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     for (doc <- documentIterator.take(100000)) {
 
       // extract features
-      for ((feature_idx, feature_value) <- extractFeatures(doc).activeIterator) {
-        matrixBuilder.add(feature_idx, doc_idx, feature_value)
-      }
+      X_train += (doc_idx -> extractFeatures(doc).toSparseVector)
 
       // extract labels
       for (topic <- doc.topics) {
@@ -112,10 +115,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
       doc_idx += 1
     }
 
-    // create spare matrix in order to not waste memory
-    X_train = matrixBuilder.result
-
-    println("Training data extracted - numSamples = " + doc_idx + " numFeatures = " + X_train.rows)
+    println("Training data extracted - numSamples = " + doc_idx + " numFeatures = " + numFeatures )
   }
 
   /**
@@ -123,7 +123,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
    *  Note that due to the limits of breeze we always have to compute vector * scalar. Vice versa doesn't compile!
    *  Note also that the this method expects the label y to be element of {-1, 1}!
    */
-  private def gradient(w: DenseVector[Double], x: SparseVector[Double], y: Double, alphaPlus: Double, alphaMinus: Double): SparseVector[Double] = {
+  private def gradient(w: SparseVector[Double], x: SparseVector[Double], y: Double, alphaPlus: Double, alphaMinus: Double): SparseVector[Double] = {
     var scalar = (-y) / (1 + scala.math.exp(y * (w dot x)))
     scalar = if(y == 1) alphaMinus * scalar else alphaPlus * scalar  // weight the gradients to handle imbalanced data 
     return x * scalar
@@ -133,12 +133,13 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
    * Evaluates the standard logistic loss function for a given weight vector w and data sample x.
    * It computes the probability that the sample belongs to the class.
    */
-  private def logistic(w: DenseVector[Double], x: SparseVector[Double]): Double = {
+  private def logistic(w: StorageVector[Double], x: SparseVector[Double]): Double = {
     return 1 / (1 + scala.math.exp(-(w dot x)))
   }
 
   private def train(topic_idx: Int): Unit = {
-    var w = weightVectors(::, topic_idx)
+//    var w = weightVectors(::, topic_idx)
+    var w = SparseVector.zeros[Double](numFeatures)
     var eta: Double = 1
     
     // compute weights due to imbalanced data
@@ -149,15 +150,16 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
 
     // one pass through the data
     var generator = new Random()
-    for (t <- Range(1, (numTrainingSamples * 0.5).toInt)) {
+    for (t <- Range(1, 30000) ) {
       val idx = generator.nextInt(numTrainingSamples)
-      val x = extractColumn(X_train, idx);
+      // val x = extractColumn(X_train, idx);
+      val x = X_train.get(idx).get
       val y = Y_train(topic_idx, idx)
-      w = w - gradient(w, x, y, alphaPlus, alphaMinus).toDenseVector * (eta / t)
-
-      //if (t % 1000 == 0) {
-      //  testTrainingError(topic_idx, w)
-      //}
+      w = w - gradient(w, x, y, alphaPlus, alphaMinus) * (eta / t)
+      
+//      if (t % 5000 == 0) {
+//        testTrainingError(topic_idx, w)
+//      }
     }
 
     weightVectors(::, topic_idx) := w
@@ -168,7 +170,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
    * A help method to test whether we improve on the training set during the learning process.
    * If not, then it is an indicator that something is wrong!
    */
-  private def testTrainingError(topic_idx: Int, w: DenseVector[Double]) {
+  private def testTrainingError(topic_idx: Int, w: SparseVector[Double]) {
     var truePositive = 0
     var trueNegative = 0
     var falsePositive = 0
@@ -177,7 +179,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     var numNegatives = 0
 
     for (i <- Range(0, numTrainingSamples)) {
-      val x = extractColumn(X_train, i)
+      val x = X_train.get(i).get
       val y = Y_train(topic_idx, i)
       val y_hat = if (logistic(w, x) >= threshold) 1 else -1
 
@@ -207,11 +209,10 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
 
     // train
     println("Start training:")
-    weightVectors = DenseMatrix.zeros[Double](X_train.rows, topics.size)
+    weightVectors = DenseMatrix.zeros[Double](numFeatures, topics.size)
     Range(0, topics.size).par.foreach(topic_idx => train(topic_idx))
 
     // stop words removal
-    // smoothing? hard to implement..
     // stemming
     // weight cost function to counteract imbalanced data
     // add intercept feature
@@ -220,7 +221,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
   def predict(testsetPath: String): Map[Int, Set[String]] = {
     var documentClassifications = Map[Int, Set[String]]()
     val documentIterator = new ReutersCorpusIterator(testsetPath)
-    for ((doc, count) <- documentIterator.take(100000).zipWithIndex) {
+    for ((doc, count) <- documentIterator.zipWithIndex) {
       val documentClassification = predictTopicsForDocument(doc)
       documentClassifications += ((doc.ID, documentClassification))
 
