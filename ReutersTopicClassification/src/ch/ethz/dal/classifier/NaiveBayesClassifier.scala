@@ -7,7 +7,7 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.ListBuffer
 import com.github.aztek.porterstemmer.PorterStemmer
 
-class NaiveBayesClassifier(datasetPath: String, maxDocuments: Int, alpha: Int, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier(removeStopwords, useStemming){
+class NaiveBayesClassifier(datasetPath: String, restrictedTopics: Set[String], maxDocuments: Int, alpha: Int, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier(restrictedTopics, removeStopwords, useStemming){
 
   /* All topics that are available */
   var topics = Iterable[String]()

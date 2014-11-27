@@ -13,8 +13,9 @@ import ch.ethz.dal.processing.ReutersRCVParse
 import breeze.linalg.VectorBuilder
 import scala.collection.mutable.ListBuffer
 import breeze.linalg.StorageVector
+import scala.collection.parallel.mutable.ParHashMap
 
-class LogisticRegressionClassifier(datasetPath: String, threshold: Double, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier(removeStopwords, useStemming) {
+class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[String], threshold: Double, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier(restrictedTopics, removeStopwords, useStemming) {
 
   /** A map which stores the matrix indices for each topic */
   var topics = Map[String, Int]()
@@ -29,9 +30,9 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
   
   var numFeatures: Int = 0
 
-  /** each column is a weight vector w for a topic that is available  */
-  var weightVectors: DenseMatrix[Double] = null
-
+  /** each entry corresponds to a topic_index and a weight vector w */
+  var weightVectors = new ParHashMap[Int, SparseVector[Double]]()
+  
   /** this map stores for each document a sparse vector */
   var X_train = new collection.mutable.HashMap[Int, SparseVector[Double]]()
 
@@ -63,8 +64,9 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
       numDocuments  += 1
     }
     vocabulary = tempVocabulary.zipWithIndex.map({ case (term, index) => term -> index }).toMap
-    topics = tempTopics.zipWithIndex.map({ case (topic, index) => topic -> index }).toMap
-
+    topics = filterTopics(tempTopics.toSet).zipWithIndex.map({ case (topic, index) => topic -> index }).toMap
+    println(topics)
+    
     println("num documents: " + numDocuments)
     println("num topics: " + topics.size)
     println("dictionary size: " + vocabulary.size)
@@ -84,7 +86,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
       X_train += (doc_idx -> extractFeaturesForDocument(doc).toSparseVector)
 
       // extract labels
-      for (topic <- doc.topics) {
+      for (topic <- filterTopics(doc.topics)) {
         val topic_idx = topics.get(topic).get
         Y_train(topic_idx, doc_idx) = 1
       }
@@ -95,9 +97,6 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     // assign Y the correct dimensions of the label matrix
     Y_train = Y_train(::, 0 to numTrainingSamples-1)
     
-    // initialize weight vectors with correct dimensions
-    weightVectors = DenseMatrix.zeros[Double](numFeatures, topics.size)
-    
     println("Training data extracted - numSamples = " + numTrainingSamples  + " numFeatures = " + numFeatures )
   }
   
@@ -107,7 +106,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     for ((term, frequency) <- tf) {
       val term_idx = vocabulary.getOrElse(term, -1) // index of term in dictionary or -1 if not present
       if (term_idx != -1) {
-        vectorBuilder.add(term_idx, frequency / vocabulary.size.toDouble)
+        vectorBuilder.add(term_idx, frequency)
       }
     }
     
@@ -129,15 +128,19 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     val alphaMinus = numNegative/numTrainingSamples .toDouble
 
     // one pass through the data
-    var generator = new Random()
-    for (t <- Range(1, 30000) ) {
+    var generator = new Random(topic_idx)
+    for (t <- Range(1, 10000) ) {
       val idx = generator.nextInt(numTrainingSamples)
       val x = X_train.get(idx).get
       val y = Y_train(topic_idx, idx)
       w = w - gradient(w, x, y, alphaPlus, alphaMinus) * (eta / t)
+      
+      //if ( (t+1) % 5000 == 0){
+      //  testTrainingError(topic_idx, w)
+      //}
     }
-
-    weightVectors(::, topic_idx) := w
+    
+	weightVectors += (topic_idx -> w)
     println("topic trained")
   }
   
@@ -194,7 +197,7 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     val TPRate = truePositive / numPositives.toDouble
     val TNRate = trueNegative / numNegatives.toDouble
     
-    println("TP rate = " + TPRate + " ("+ truePositive + "/" + numPositives + ") TN rate = " + TNRate+ " ("+ trueNegative + "/" + numNegatives + ")")
+    println("Topic: " + topic_idx +  " TP rate = " + TPRate + " ("+ truePositive + "/" + numPositives + ") TN rate = " + TNRate+ " ("+ trueNegative + "/" + numNegatives + ")")
   }
 
   def predict(testsetPath: String): Map[Int, Set[String]] = {
@@ -204,9 +207,9 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
       val documentClassification = predictTopicsForDocument(doc)
       documentClassifications += ((doc.ID, documentClassification))
 
-      if ((count + 1) % 1000 == 0) {
-        println("classified: " + (count + 1))
-      }
+//      if ((count + 1) % 10000 == 0) {
+//        println("classified: " + (count + 1))
+//      }
     }
 
     return documentClassifications
@@ -217,9 +220,9 @@ class LogisticRegressionClassifier(datasetPath: String, threshold: Double, remov
     var x = extractFeaturesForDocument(doc).toSparseVector
     for (topic <- topics.keys) {
       val topic_idx = topics.get(topic).get
-      var w = weightVectors(::, topic_idx)
+      var w = weightVectors.get(topic_idx).get
 
-      if (logistic(w, x) > 0.5) {
+      if (logistic(w, x) >= threshold) {
         classifiedTopcis += topic
       }
     }

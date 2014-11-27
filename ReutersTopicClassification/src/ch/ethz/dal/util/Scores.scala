@@ -35,10 +35,13 @@ class Scores {
     val precision = getPrecision(predictedTopics, trueTopics)
     val recall = getRecall(predictedTopics, trueTopics)
     val f1 = getF1(precision, recall)
-
-    precisions += precision
-    recalls += recall
-    f1s += f1
+    
+    // ignore documents without any true topics assigned to them, since it falsifies the result with 0-entries and makes it less interpretable
+    if (! trueTopics.isEmpty){
+	    precisions += precision
+	    recalls += recall
+	    f1s += f1
+    }
   }
 
   def getAveragePrecision(): Double = {

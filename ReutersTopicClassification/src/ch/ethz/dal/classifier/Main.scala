@@ -11,12 +11,16 @@ object Main {
     val training_set = rootPath + "/train"
     val validation_set = rootPath + "/test-with-labels"
     val classifierToUse = "lg"
-      
+    
+    // for test purposes we use a restricted set of topics to classify
+    var restrictedTopics = List[String]("MCAT", "E21", "GPOL", "GPRO", "GSCI", "GJOB", "E141", "E312", "C42", "M142")
+    var validationTopics = List[String]("MCAT", "E121", "M141", "GFAS", "M12", "C174", "C24", "GCRIM", "GVIO", "GDIP", "E14", "C13", "E211", "GSPO", "E142", "GENT", "GCAT", "E311", "G156", "C31", "E131", "E511", "E512", "GWELF", "GPRO", "E313", "C42", "C1511", "G154", "C17")
+    
     var classifier : AbstractClassifier = null
     if (classifierToUse == "nb"){
-      classifier = new NaiveBayesClassifier(training_set, 3, 1, true, false)
+      classifier = new NaiveBayesClassifier(training_set, Set[String](), 3, 1, true, false)
     }else if( classifierToUse == "lg"){
-      classifier = new LogisticRegressionClassifier(training_set, threshold=0.5, true, false)
+      classifier = new LogisticRegressionClassifier(training_set, validationTopics.toSet, threshold=0.75, true, false)
     }
     
     val watch = new StopWatch()
@@ -30,8 +34,12 @@ object Main {
     val scores = new Scores()
     for(document <- validationIterator){
       val predictedTopics = documentClassifications.get(document.ID).get
-      val trueTopics = document.topics
+      val trueTopics = classifier.filterTopics(document.topics)
       scores.addScores(predictedTopics, trueTopics)
+      
+//      if (math.random < 0.001){
+//        println("num predicted topics = " + predictedTopics + " num true topics = " + trueTopics)
+//      }
     }
     println(scores.getAveragePrecision + " " + scores.getAverageRecall + " " + scores.getAverageF1)
     
