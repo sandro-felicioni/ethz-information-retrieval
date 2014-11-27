@@ -44,26 +44,29 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
     extractTrainingData()
 
     // train
-    println("Start training:")
+    print("Training model:")
     Range(0, topics.size).par.foreach(topic_idx => trainTopic(topic_idx))
-
-    // stemming
-    // add intercept feature
-    // normalization of bow with N or use tf-idf score instead
+    print("done\n")
   }
   
   private def retrieveTopicsAndVocabulary(): Unit = {
     // retrieve all topics and fix the vocabulary
     var tempTopics = collection.mutable.Set[String]()
-    var tempVocabulary = collection.mutable.Set[String]()
+    var vocabularyFrequency = collection.mutable.Map[String, Int]()
 
     val documentIterator = new ReutersCorpusIterator(datasetPath)
     for (doc <- documentIterator.take(50000)) {
       tempTopics ++= doc.topics
-      tempVocabulary ++= getCleanTokens(doc.tokens)
+      val cleanTokens = getCleanTokens(doc.tokens)
+      vocabularyFrequency ++= cleanTokens.groupBy(identity).mapValues( list => list.length).map{ case(term, frequency) => term -> (frequency + vocabularyFrequency.getOrElse(term, 0))}
+      
       numDocuments  += 1
     }
-    vocabulary = tempVocabulary.zipWithIndex.map({ case (term, index) => term -> index }).toMap
+    
+//     printFrequencies(vocabularyFrequency)
+    dropLowFrequencyTerms(vocabularyFrequency, lowerThreshold=12)
+    
+    vocabulary = vocabularyFrequency.keys.zipWithIndex.map({ case (term, index) => term -> index }).toMap
     topics = filterTopics(tempTopics.toSet).zipWithIndex.map({ case (topic, index) => topic -> index }).toMap
     println(topics)
     
@@ -71,7 +74,28 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
     println("num topics: " + topics.size)
     println("dictionary size: " + vocabulary.size)
     println("topics retrieved and vocabulary size fixed")
-  }  
+  }
+  
+  /** Drop terms that have a frequency <= lowerThreshold */
+  private def dropLowFrequencyTerms(vocabularyFrequency: collection.mutable.Map[String, Int], lowerThreshold: Int) : Unit = {
+    val before = vocabularyFrequency.size
+    vocabularyFrequency.retain{ case (term, frequency) => frequency > lowerThreshold}
+    val after = vocabularyFrequency.size
+    println("dropped " + (before - after) + " low frequency terms from vocabulary! New Size = " + after)
+  }
+  
+  /** Drop terms that have a frequency >= upperThreshold */
+  private def dropHighFrequencyTerms(vocabularyFrequency: collection.mutable.Map[String, Int], upperThreshold: Int) : Unit = {
+    val before = vocabularyFrequency.size
+    vocabularyFrequency.retain{ case (term, frequency) => frequency < upperThreshold}
+    val after = vocabularyFrequency.size
+    println("dropped " + (before - after) + " high frequency terms from vocabulary! New Size = " + after)
+  }
+  
+  private def printFrequencies(termFrequencies: collection.mutable.Map[String, Int]) : Unit = {
+    termFrequencies.valuesIterator.foreach(frequency => print(frequency + ","))
+    println("")
+  }
   
   private def extractTrainingData(): Unit = {
     
@@ -127,9 +151,9 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
     val alphaPlus = numPositive/numTrainingSamples.toDouble
     val alphaMinus = numNegative/numTrainingSamples .toDouble
 
-    // one pass through the data
+    // perform SGD to train the model
     var generator = new Random(topic_idx)
-    for (t <- Range(1, 10000) ) {
+    for (t <- Range(1, numTrainingSamples) ) {
       val idx = generator.nextInt(numTrainingSamples)
       val x = X_train.get(idx).get
       val y = Y_train(topic_idx, idx)
@@ -141,7 +165,7 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
     }
     
 	weightVectors += (topic_idx -> w)
-    println("topic trained")
+    print(weightVectors.size + " ")
   }
   
   /**
@@ -207,9 +231,9 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
       val documentClassification = predictTopicsForDocument(doc)
       documentClassifications += ((doc.ID, documentClassification))
 
-//      if ((count + 1) % 10000 == 0) {
-//        println("classified: " + (count + 1))
-//      }
+      if ((count + 1) % 10000 == 0) {
+        println("classified: " + (count + 1))
+      }
     }
 
     return documentClassifications

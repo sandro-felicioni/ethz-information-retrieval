@@ -20,7 +20,7 @@ object Main {
     if (classifierToUse == "nb"){
       classifier = new NaiveBayesClassifier(training_set, Set[String](), 3, 1, true, false)
     }else if( classifierToUse == "lg"){
-      classifier = new LogisticRegressionClassifier(training_set, validationTopics.toSet, threshold=0.75, true, false)
+      classifier = new LogisticRegressionClassifier(training_set, validationTopics.toSet, threshold=0.75, true, true)
     }
     
     val watch = new StopWatch()
