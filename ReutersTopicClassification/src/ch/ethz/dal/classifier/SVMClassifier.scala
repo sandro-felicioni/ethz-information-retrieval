@@ -144,11 +144,9 @@ class SVMClassifier(datasetPath: String, restrictedTopics: Set[String], lambda: 
     var w = SparseVector.zeros[Double](numFeatures)
     var eta: Double = 1
 
-    // compute weights due to imbalanced data
+    // count asymmetry in data
     val numPositive = (Y_train(topic_idx, ::).t :== 1).activeSize
     val numNegative = (Y_train(topic_idx, ::).t :== -1).activeSize
-    val alphaPlus = numPositive / numTrainingSamples.toDouble
-    val alphaMinus = numNegative / numTrainingSamples.toDouble
 
     // perform SGD to train the model
     var generator = new Random(topic_idx)
@@ -156,7 +154,7 @@ class SVMClassifier(datasetPath: String, restrictedTopics: Set[String], lambda: 
       val idx = generator.nextInt(numTrainingSamples)
       val x = X_train.get(idx).get
       val y = Y_train(topic_idx, idx)
-      w = w - gradient(w, x, y, alphaPlus, alphaMinus) * (eta / (lambda * t))
+      w = w - gradient(w, x, y, numPositive, numNegative) * (eta / (lambda * t))
 
       //      if ( (t+1) % 5000 == 0){
       //        testTrainingError(topic_idx, w)
@@ -168,15 +166,14 @@ class SVMClassifier(datasetPath: String, restrictedTopics: Set[String], lambda: 
   }
 
   /**
-   *  Computes the gradient of the negative log-logistic loss function: l(w; x, y) = 1 + exp(-y * w^x)
-   *  Note that due to the limits of breeze we always have to compute vector * scalar. Vice versa doesn't compile!
+   *  Computes the gradient of the asymmetric hinge loss
    *  Note also that the this method expects the label y to be element of {-1, 1}!
    */
-  private def gradient(w: SparseVector[Double], x: SparseVector[Double], y: Double, alphaPlus: Double, alphaMinus: Double): SparseVector[Double] = {
-    var alpha = 1d
+  private def gradient(w: SparseVector[Double], x: SparseVector[Double], y: Double, numPositive: Double, numNegative: Double): SparseVector[Double] = {
+    var alpha = 1.0
     if (y == 1) {
       // max required for the unlikely case where we would have more positive than negative samples
-      alpha = math.max(alpha, 1 / alphaPlus - 1)
+      alpha = math.max(1.0, numNegative/ numPositive)
     }
 
     if (y * (w dot x) >= alpha) {
