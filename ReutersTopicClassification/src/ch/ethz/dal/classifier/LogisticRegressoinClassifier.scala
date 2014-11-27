@@ -19,20 +19,20 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
 
   /** A map which stores the matrix indices for each topic */
   var topics = Map[String, Int]()
-  
+
   var vocabulary = Map[String, Int]()
 
-  /** total number of documents that are used to build the vocabulary and topic set*/ 
+  /** total number of documents that are used to build the vocabulary and topic set*/
   var numDocuments: Int = 0
-  
+
   /** the number of effective training set size that is used during training */
   var numTrainingSamples: Int = 0
-  
+
   var numFeatures: Int = 0
 
   /** each entry corresponds to a topic_index and a weight vector w */
   var weightVectors = new ParHashMap[Int, SparseVector[Double]]()
-  
+
   /** this map stores for each document a sparse vector */
   var X_train = new collection.mutable.HashMap[Int, SparseVector[Double]]()
 
@@ -48,7 +48,7 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
     Range(0, topics.size).par.foreach(topic_idx => trainTopic(topic_idx))
     print("done\n")
   }
-  
+
   private def retrieveTopicsAndVocabulary(): Unit = {
     // retrieve all topics and fix the vocabulary
     var tempTopics = collection.mutable.Set[String]()
@@ -58,49 +58,50 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
     for (doc <- documentIterator.take(50000)) {
       tempTopics ++= doc.topics
       val cleanTokens = getCleanTokens(doc.tokens)
-      vocabularyFrequency ++= cleanTokens.groupBy(identity).mapValues( list => list.length).map{ case(term, frequency) => term -> (frequency + vocabularyFrequency.getOrElse(term, 0))}
-      
-      numDocuments  += 1
+      vocabularyFrequency ++= cleanTokens.groupBy(identity).mapValues(list => list.length).map { case (term, frequency) => term -> (frequency + vocabularyFrequency.getOrElse(term, 0)) }
+
+      numDocuments += 1
     }
-    
-//     printFrequencies(vocabularyFrequency)
-    dropLowFrequencyTerms(vocabularyFrequency, lowerThreshold=12)
-    
+
+    // printFrequencies(vocabularyFrequency)
+    dropLowFrequencyTerms(vocabularyFrequency, lowerThreshold = 12)
+
     vocabulary = vocabularyFrequency.keys.zipWithIndex.map({ case (term, index) => term -> index }).toMap
     topics = filterTopics(tempTopics.toSet).zipWithIndex.map({ case (topic, index) => topic -> index }).toMap
     println(topics)
-    
+
     println("num documents: " + numDocuments)
     println("num topics: " + topics.size)
     println("dictionary size: " + vocabulary.size)
     println("topics retrieved and vocabulary size fixed")
   }
-  
+
   /** Drop terms that have a frequency <= lowerThreshold */
-  private def dropLowFrequencyTerms(vocabularyFrequency: collection.mutable.Map[String, Int], lowerThreshold: Int) : Unit = {
+  private def dropLowFrequencyTerms(vocabularyFrequency: collection.mutable.Map[String, Int], lowerThreshold: Int): Unit = {
     val before = vocabularyFrequency.size
-    vocabularyFrequency.retain{ case (term, frequency) => frequency > lowerThreshold}
+    vocabularyFrequency.retain { case (term, frequency) => frequency > lowerThreshold }
     val after = vocabularyFrequency.size
     println("dropped " + (before - after) + " low frequency terms from vocabulary! New Size = " + after)
   }
-  
+
   /** Drop terms that have a frequency >= upperThreshold */
-  private def dropHighFrequencyTerms(vocabularyFrequency: collection.mutable.Map[String, Int], upperThreshold: Int) : Unit = {
+  private def dropHighFrequencyTerms(vocabularyFrequency: collection.mutable.Map[String, Int], upperThreshold: Int): Unit = {
     val before = vocabularyFrequency.size
-    vocabularyFrequency.retain{ case (term, frequency) => frequency < upperThreshold}
+    vocabularyFrequency.retain { case (term, frequency) => frequency < upperThreshold }
     val after = vocabularyFrequency.size
     println("dropped " + (before - after) + " high frequency terms from vocabulary! New Size = " + after)
   }
-  
-  private def printFrequencies(termFrequencies: collection.mutable.Map[String, Int]) : Unit = {
+
+  private def printFrequencies(termFrequencies: collection.mutable.Map[String, Int]): Unit = {
     termFrequencies.valuesIterator.foreach(frequency => print(frequency + ","))
     println("")
   }
-  
+
   private def extractTrainingData(): Unit = {
-    
+
     // pre-allocate maximal label matrix
     Y_train = DenseMatrix.fill(rows = topics.size, cols = numDocuments)(-1) // -1 => has not label and 1 => has label
+    numFeatures = vocabulary.size + 1
     
     var doc_idx = 0
     val documentIterator = new ReutersCorpusIterator(datasetPath)
@@ -117,39 +118,37 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
       doc_idx += 1
     }
     numTrainingSamples = doc_idx
-    
+
     // assign Y the correct dimensions of the label matrix
-    Y_train = Y_train(::, 0 to numTrainingSamples-1)
-    
-    println("Training data extracted - numSamples = " + numTrainingSamples  + " numFeatures = " + numFeatures )
+    Y_train = Y_train(::, 0 to numTrainingSamples - 1)
+
+    println("Training data extracted - numSamples = " + numTrainingSamples + " numFeatures = " + numFeatures)
   }
-  
+
   private def extractFeaturesForDocument(doc: ReutersRCVParse): VectorBuilder[Double] = {
     var tf = getCleanTokens(doc.tokens).groupBy(identity).mapValues(valueList => valueList.length)
-    val vectorBuilder = new VectorBuilder[Double](vocabulary.size + 1)
+    val vectorBuilder = new VectorBuilder[Double](numFeatures)
     for ((term, frequency) <- tf) {
       val term_idx = vocabulary.getOrElse(term, -1) // index of term in dictionary or -1 if not present
       if (term_idx != -1) {
         vectorBuilder.add(term_idx, frequency)
       }
     }
-    
+
     // add intercept as last element
     vectorBuilder.add(vectorBuilder.size - 1, 1)
-    
-    numFeatures = vectorBuilder.size
     return vectorBuilder
-  }  
+  }
 
   private def trainTopic(topic_idx: Int): Unit = {
     var w = SparseVector.zeros[Double](numFeatures)
     var eta: Double = 1
-    
+
     // compute weights due to imbalanced data
     val numPositive = (Y_train(topic_idx, ::).t :== 1).activeSize
     val numNegative = (Y_train(topic_idx, ::).t :== -1).activeSize
-    val alphaPlus = numPositive/numTrainingSamples.toDouble
-    val alphaMinus = numNegative/numTrainingSamples .toDouble
+    val alphaPlus = numPositive / numTrainingSamples.toDouble
+    val alphaMinus = numNegative / numTrainingSamples.toDouble
 
     // perform SGD to train the model
     var generator = new Random(topic_idx)
@@ -158,16 +157,16 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
       val x = X_train.get(idx).get
       val y = Y_train(topic_idx, idx)
       w = w - gradient(w, x, y, alphaPlus, alphaMinus) * (eta / t)
-      
+
       //if ( (t+1) % 5000 == 0){
       //  testTrainingError(topic_idx, w)
       //}
     }
-    
-	weightVectors += (topic_idx -> w)
+
+    weightVectors += (topic_idx -> w)
     print(weightVectors.size + " ")
   }
-  
+
   /**
    *  Computes the gradient of the negative log-logistic loss function: l(w; x, y) = 1 + exp(-y * w^x)
    *  Note that due to the limits of breeze we always have to compute vector * scalar. Vice versa doesn't compile!
@@ -175,7 +174,7 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
    */
   private def gradient(w: SparseVector[Double], x: SparseVector[Double], y: Double, alphaPlus: Double, alphaMinus: Double): SparseVector[Double] = {
     var scalar = (-y) / (1 + scala.math.exp(y * (w dot x)))
-    scalar = if(y == 1) alphaMinus * scalar else alphaPlus * scalar  // weight the gradients to handle imbalanced data 
+    scalar = if (y == 1) alphaMinus * scalar else alphaPlus * scalar // weight the gradients to handle imbalanced data 
     return x * scalar
   }
 
@@ -185,7 +184,7 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
    */
   private def logistic(w: StorageVector[Double], x: SparseVector[Double]): Double = {
     return 1 / (1 + scala.math.exp(-(w dot x)))
-  }  
+  }
 
   /**
    * A help method to test whether we improve on the training set during the learning process.
@@ -213,15 +212,15 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
       } else if (y == -1 && y_hat == -1) {
         numNegatives += 1
         trueNegative += 1
-      }else if (y == -1 && y_hat == 1){
+      } else if (y == -1 && y_hat == 1) {
         numNegatives += 1
         falsePositive += 1
       }
     }
     val TPRate = truePositive / numPositives.toDouble
     val TNRate = trueNegative / numNegatives.toDouble
-    
-    println("Topic: " + topic_idx +  " TP rate = " + TPRate + " ("+ truePositive + "/" + numPositives + ") TN rate = " + TNRate+ " ("+ trueNegative + "/" + numNegatives + ")")
+
+    println("Topic: " + topic_idx + " TP rate = " + TPRate + " (" + truePositive + "/" + numPositives + ") TN rate = " + TNRate + " (" + trueNegative + "/" + numNegatives + ")")
   }
 
   def predict(testsetPath: String): Map[Int, Set[String]] = {
@@ -238,7 +237,7 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
 
     return documentClassifications
   }
-  
+
   private def predictTopicsForDocument(doc: ReutersRCVParse): Set[String] = {
     var classifiedTopcis = new ListBuffer[String]()
     var x = extractFeaturesForDocument(doc).toSparseVector
@@ -251,5 +250,5 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
       }
     }
     return classifiedTopcis.toSet
-  }  
+  }
 }
