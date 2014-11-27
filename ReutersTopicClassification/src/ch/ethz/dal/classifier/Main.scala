@@ -10,7 +10,7 @@ object Main {
     val rootPath = "./reuters-dataset"
     val training_set = rootPath + "/train"
     val validation_set = rootPath + "/test-with-labels"
-    val classifierToUse = "lg"
+    val classifierToUse = "svm"
     
     // for test purposes we use a restricted set of topics to classify
     var restrictedTopics = List[String]("MCAT", "E21", "GPOL", "GPRO", "GSCI", "GJOB", "E141", "E312", "C42", "M142")
@@ -21,6 +21,8 @@ object Main {
       classifier = new NaiveBayesClassifier(training_set, Set[String](), 3, 1, true, false)
     }else if( classifierToUse == "lg"){
       classifier = new LogisticRegressionClassifier(training_set, validationTopics.toSet, threshold=0.75, true, true)
+    }else if( classifierToUse == "svm"){
+      classifier = new SVMClassifier(training_set, validationTopics.toSet, lambda=0.005, true, true)
     }
     
     val watch = new StopWatch()
