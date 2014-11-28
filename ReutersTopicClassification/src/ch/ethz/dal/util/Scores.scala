@@ -56,16 +56,3 @@ class Scores {
     return f1s.sum / f1s.size.toDouble
   }
 }
-
-object Scores {
-  def main(args: Array[String]) = {
-    // Test cases for precision / recall / F1 scores
-    var predictedTopics = Set("2", "4", "6")
-    var trueTopics = Set("1", "2")
-
-    val scores = new Scores()
-    assert(1 / 3.0 == scores.getPrecision(predictedTopics, trueTopics))
-    assert(1 / 2.0 == scores.getRecall(predictedTopics, trueTopics))
-    assert((2 * (1 / 3.0) * (1 / 2.0) / (1 / 3.0 + 1 / 2.0)) == scores.getF1(1 / 3.0, 1 / 2.0))
-  }
-}
