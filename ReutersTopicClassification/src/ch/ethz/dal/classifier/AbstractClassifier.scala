@@ -39,12 +39,16 @@ abstract class AbstractClassifier(restrictedTopics: Set[String], removeStopwords
     return column
   }
 
-  /** In order to test classifier on a restricted set of topics */
+  /** 
+   *  This is a utility method, in order to test the classifier on a restricted set of topics.
+   *  If the class member variable "restrictedTopics" is empty than we simply return the full list of topics.
+   *  But when it is not empty we will just return the intersection between both sets! 
+   */
   def filterTopics(topics: Set[String]): Set[String] = {
 	  if(restrictedTopics.isEmpty){
 	    return topics
 	  }
-	  return topics.filter(topic => restrictedTopics.contains(topic))
+	  return topics.intersect(restrictedTopics)
   }
 
   def training()
