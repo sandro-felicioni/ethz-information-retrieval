@@ -14,7 +14,7 @@ object Main {
     var trainingSet = rootPath + "/train"
     var validationSet = rootPath + "/test-with-labels"
     var testSet = rootPath + "/test-without-labels"
-    var classifierToUse = "lr"
+    var classifierToUse = "svm"
 
     if (args.length == 4) {
       trainingSet = args(0)
@@ -40,7 +40,7 @@ object Main {
     } else if (classifierToUse == "lr") {
       classifier = new LogisticRegressionClassifier(trainingSet, Set[String](), threshold = 0.60, true, true)
     } else if (classifierToUse == "svm") {
-      classifier = new SVMClassifier(trainingSet, validationTopics.toSet, lambda = 0.005, true, true)
+      classifier = new SVMClassifier(trainingSet, Set[String](), lambda = 0.005, true, true)
     }
 
     // training
