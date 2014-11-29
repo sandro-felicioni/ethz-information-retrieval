@@ -14,7 +14,7 @@ object Main {
     var trainingSet = rootPath + "/train"
     var validationSet = rootPath + "/test-with-labels"
     var testSet = rootPath + "/test-without-labels"
-    var classifierToUse = "svm"
+    var classifierToUse = "nb"
 
     if (args.length == 4) {
       trainingSet = args(0)
@@ -36,7 +36,7 @@ object Main {
 
     var classifier: AbstractClassifier = null
     if (classifierToUse == "nb") {
-      classifier = new NaiveBayesClassifier(trainingSet, Set[String](), 3, 1, true, false)
+      classifier = new NaiveBayesClassifier(trainingSet, maxDocuments=3, 2, true, false)
     } else if (classifierToUse == "lr") {
       classifier = new LogisticRegressionClassifier(trainingSet, validationTopics.toSet, threshold = 0.75, true, true)
     } else if (classifierToUse == "svm") {

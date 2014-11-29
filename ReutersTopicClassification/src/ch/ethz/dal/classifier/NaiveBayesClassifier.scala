@@ -7,7 +7,7 @@ import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.ListBuffer
 import com.github.aztek.porterstemmer.PorterStemmer
 
-class NaiveBayesClassifier(datasetPath: String, restrictedTopics: Set[String], maxDocuments: Int, alpha: Int, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier(restrictedTopics, removeStopwords, useStemming){
+class NaiveBayesClassifier(datasetPath: String, maxDocuments: Int, alpha: Double, removeStopwords: Boolean, useStemming: Boolean) extends AbstractClassifier(Set[String](), removeStopwords, useStemming) {
 
   /* All topics that are available */
   var topics = Iterable[String]()
@@ -20,10 +20,16 @@ class NaiveBayesClassifier(datasetPath: String, restrictedTopics: Set[String], m
 
   /* normalization constant per class (stored separately due to smoothing)*/
   var numWordsPerClass = Map[String, Int]()
-  
+
   /* the vocabulary that is used */
   var vocabulary = Set[String]()
 
+  def training() = {
+    computeClassProbabilities();
+    computeConditionalProbabilities();
+  }
+
+  /** Compute P(c) */
   private def computeClassProbabilities() = {
     val topicCounts = collection.mutable.Map[String, Int]()
     var numDocuments = 0
@@ -41,16 +47,17 @@ class NaiveBayesClassifier(datasetPath: String, restrictedTopics: Set[String], m
     println("Computed class probabilities P(c)")
   }
 
+  /** Compute P(w|c) */
   private def computeConditionalProbabilities() = {
     // initialize all conditional probabilities
     classProbabilities.keys.foreach(topic => conditionalProbabilities.put(topic, collection.mutable.Map[String, Int]()))
 
     val documentIterator = new ReutersCorpusIterator(datasetPath)
     for (doc <- documentIterator) {
-      val cleanTokens = getCleanTokens(doc.tokens) 
+      val cleanTokens = getCleanTokens(doc.tokens)
       val docLength = cleanTokens.size
       val termFrequency = cleanTokens.groupBy(identity).mapValues(valueList => valueList.length)
-      vocabulary  ++= termFrequency.keySet
+      vocabulary ++= termFrequency.keySet
 
       for (topic <- doc.topics) {
         var conditionalProbability = conditionalProbabilities.get(topic).get
@@ -58,47 +65,42 @@ class NaiveBayesClassifier(datasetPath: String, restrictedTopics: Set[String], m
         numWordsPerClass += topic -> (docLength + numWordsPerClass.getOrElse(topic, 0))
       }
     }
-     println("Computed conditional probabilities P(w|c)")
+    println("Computed conditional probabilities P(w|c)")
   }
 
-  private def predictTopicsForDocument(doc: ReutersRCVParse): Set[String] = {
-    val termFrequency = getCleanTokens(doc.tokens).groupBy(identity).mapValues(valueList => valueList.length)
-    
-    var priorityQueue = new collection.mutable.PriorityQueue[(String, Double)]()(Ordering.by(score => -score._2))
-    for (topic <- topics) {
-    	var score = log2(classProbabilities.get(topic).get)
-    	val conditionalProbability = conditionalProbabilities.get(topic).get
-    	val numWords = numWordsPerClass.get(topic).get.toDouble
-    	
-    	for (term <- termFrequency.keys){
-    	  score += termFrequency.get(term).get * log2(( (alpha + conditionalProbability.getOrElse(term, 0)) / (numWords + alpha*vocabulary.size) ))
-    	}
-    	
-    	if(priorityQueue.size < maxDocuments || score > priorityQueue.head._2){
-    	  priorityQueue.enqueue((topic, score))
-    	}
-    	
-    	if(priorityQueue.size > maxDocuments){
-    	  priorityQueue.dequeue
-    	}
-    }
-    
-    return priorityQueue.map{case (topic, score) => topic}.toSet
-  }
-  
-  def training() = {
-    computeClassProbabilities();
-    computeConditionalProbabilities();
-  }
-
-  def predict(testsetPath: String) : Map[Int, Set[String]] = {
+  def predict(testsetPath: String): Map[Int, Set[String]] = {
     var documentClassifications = Map[Int, Set[String]]()
     val documentIterator = new ReutersCorpusIterator(testsetPath)
     for (doc <- documentIterator) {
       val documentClassification = predictTopicsForDocument(doc)
       documentClassifications += ((doc.ID, documentClassification))
     }
-    
+
     return documentClassifications
+  }
+
+  private def predictTopicsForDocument(doc: ReutersRCVParse): Set[String] = {
+    val termFrequency = getCleanTokens(doc.tokens).groupBy(identity).mapValues(valueList => valueList.length)
+
+    var priorityQueue = new collection.mutable.PriorityQueue[(String, Double)]()(Ordering.by(score => -score._2))
+    for (topic <- topics) {
+      var score = log2(classProbabilities.get(topic).get)
+      val conditionalProbability = conditionalProbabilities.get(topic).get
+      val numWords = numWordsPerClass.get(topic).get.toDouble
+
+      for (term <- termFrequency.keys) {
+        score += termFrequency.get(term).get * log2(((alpha + conditionalProbability.getOrElse(term, 0)) / (numWords + alpha * vocabulary.size)))
+      }
+
+      if (priorityQueue.size < maxDocuments || score > priorityQueue.head._2) {
+        priorityQueue.enqueue((topic, score))
+      }
+
+      if (priorityQueue.size > maxDocuments) {
+        priorityQueue.dequeue
+      }
+    }
+
+    return priorityQueue.map { case (topic, score) => topic }.toSet
   }
 }
