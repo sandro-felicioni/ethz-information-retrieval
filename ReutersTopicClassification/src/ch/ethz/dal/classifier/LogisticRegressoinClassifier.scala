@@ -55,15 +55,15 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
     var vocabularyFrequency = collection.mutable.Map[String, Int]()
 
     val documentIterator = new ReutersCorpusIterator(datasetPath)
-    for (doc <- documentIterator.take(50000)) {
+    for (doc <- documentIterator) {
       tempTopics ++= doc.topics
       val cleanTokens = getCleanTokens(doc.tokens)
       vocabularyFrequency ++= cleanTokens.groupBy(identity).mapValues(list => list.length).map { case (term, frequency) => term -> (frequency + vocabularyFrequency.getOrElse(term, 0)) }
 
       numDocuments += 1
     }
-
-    // printFrequencies(vocabularyFrequency)
+    
+    // reduce feature space by dropping low-frequency words
     dropLowFrequencyTerms(vocabularyFrequency, lowerThreshold = 12)
 
     vocabulary = vocabularyFrequency.keys.zipWithIndex.map({ case (term, index) => term -> index }).toMap
@@ -99,13 +99,13 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
 
   private def extractTrainingData(): Unit = {
 
-    // pre-allocate maximal label matrix
-    Y_train = DenseMatrix.fill(rows = topics.size, cols = numDocuments)(-1) // -1 => has not label and 1 => has label
+    // pre-allocate maximal label matrix (-1 => has not label and 1 => has label)
+    Y_train = DenseMatrix.fill(rows = topics.size, cols = numDocuments)(-1)
     numFeatures = vocabulary.size + 1
     
     var doc_idx = 0
     val documentIterator = new ReutersCorpusIterator(datasetPath)
-    for (doc <- documentIterator.take(50000)) {
+    for (doc <- documentIterator) {
 
       // extract features
       X_train += (doc_idx -> extractFeaturesForDocument(doc).toSparseVector)
@@ -157,10 +157,6 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
       val x = X_train.get(idx).get
       val y = Y_train(topic_idx, idx)
       w = w - gradient(w, x, y, alphaPlus, alphaMinus) * (eta / t)
-
-      //if ( (t+1) % 5000 == 0){
-      //  testTrainingError(topic_idx, w)
-      //}
     }
 
     weightVectors += (topic_idx -> w)
@@ -168,7 +164,7 @@ class LogisticRegressionClassifier(datasetPath: String, restrictedTopics: Set[St
   }
 
   /**
-   *  Computes the gradient of the negative log-logistic loss function: l(w; x, y) = 1 + exp(-y * w^x)
+   *  Computes the gradient of the negative log-logistic loss function: l(w; x, y) = log[1 + exp(-y * <w,x>)]
    *  Note that due to the limits of breeze we always have to compute vector * scalar. Vice versa doesn't compile!
    *  Note also that the this method expects the label y to be element of {-1, 1}!
    */
