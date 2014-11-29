@@ -55,7 +55,7 @@ class SVMClassifier(datasetPath: String, restrictedTopics: Set[String], lambda: 
     var vocabularyFrequency = collection.mutable.Map[String, Int]()
 
     val documentIterator = new ReutersCorpusIterator(datasetPath)
-    for (doc <- documentIterator.take(50000)) {
+    for (doc <- documentIterator) {
       tempTopics ++= doc.topics
       val cleanTokens = getCleanTokens(doc.tokens)
       vocabularyFrequency ++= cleanTokens.groupBy(identity).mapValues(list => list.length).map { case (term, frequency) => term -> (frequency + vocabularyFrequency.getOrElse(term, 0)) }
@@ -99,13 +99,13 @@ class SVMClassifier(datasetPath: String, restrictedTopics: Set[String], lambda: 
 
   private def extractTrainingData(): Unit = {
 
-    // pre-allocate maximal label matrix
-    Y_train = DenseMatrix.fill(rows = topics.size, cols = numDocuments)(-1) // -1 => has not label and 1 => has label
+    // pre-allocate maximal label matrix (-1 => has not label and 1 => has label)
+    Y_train = DenseMatrix.fill(rows = topics.size, cols = numDocuments)(-1)
     numFeatures = vocabulary.size + 1
 
     var doc_idx = 0
     val documentIterator = new ReutersCorpusIterator(datasetPath)
-    for (doc <- documentIterator.take(50000)) {
+    for (doc <- documentIterator) {
 
       // extract features
       X_train += (doc_idx -> extractFeaturesForDocument(doc).toSparseVector)
@@ -150,15 +150,11 @@ class SVMClassifier(datasetPath: String, restrictedTopics: Set[String], lambda: 
 
     // perform SGD to train the model
     var generator = new Random(topic_idx)
-    for (t <- Range(1, 20000)) {
+    for (t <- Range(1, numTrainingSamples)) {
       val idx = generator.nextInt(numTrainingSamples)
       val x = X_train.get(idx).get
       val y = Y_train(topic_idx, idx)
       w = w - gradient(w, x, y, numPositive, numNegative) * (eta / (lambda * t))
-
-      //      if ( (t+1) % 5000 == 0){
-      //        testTrainingError(topic_idx, w)
-      //      }
     }
 
     weightVectors += (topic_idx -> w)
