@@ -96,7 +96,7 @@
 \newcommand{\cf}{\text{cf(w)}} % df - collection frequency
 \newcommand{\df}{\text{df(w)}} % df - document frequency
 \newcommand{\idf}{\text{idf(w)}} % idf - inverse document frequency
-
+\newcommand{\w}{\text{w}}
 % remove the paragraph indentation
  \setlength{\parindent}{0in}
 
@@ -275,36 +275,66 @@ Topic Models are statistical models trained from the document collection. The id
 \begin{align*}
   \text{P(w$|$d)} = \sum_t \text{P(w$|$t)} \text{P(t$|$d)}
 \end{align*}
-%%%%%%%%%%%%%%%%%%%%% RBAC %%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\msection{RBAC}
-Given user-permission matrix $\mathbf X \in \R^{D \times N}$, find roles $\mathbf U = [\mathbf{u}_1, \ldots, \mathbf{u}_K] \in \B^{D \times K}$ and assignment $\mathbf Z = [\mathbf{z}_1, \ldots, \mathbf{z}_N] \in \B^{K \times N}$ s.t:\\
-$\mathbf X = \mathbf U \otimes \mathbf Z \quad \Longleftrightarrow \quad x_{dn} = \bigvee_k [u_{dk} \land z_{kn}]$\\
-\vspace{0.2cm}
-Model with $\beta = (\beta_{dk})^{D \times K}$: probability that role k has \textbf{no} permission d\\
-\textbf{SAC:} ${p(\mathbf X|\mathbf \beta, \mathbf Z) \hspace{-0.08cm} = \hspace{-0.1cm} \prod\limits_{n,d} p(x_{dn} \hspace{-0.05cm} = \hspace{-0.05cm} 1| \beta_{d \cdot}, \mathbf{z}_{\cdot n})^{x_{dn}} \cdot p(x_{dn} = 0 | \beta_{d \cdot}, \mathbf{z}_{\cdot n})^{1 - x_{dn}}}$\\ 
-\hspace{2.55cm}$= \prod\limits_{n,d}(1-\beta_{d, k_n})^{x_{dn}} \; (\beta_{d, k_n})^{1-x_{dn}}$\\
+%%%%%%%%%%%%%%%%%%%%% Text Categorization %%%%%%%%%%%%%%%%%%%%%%%%%%
+\msection{6 - Text Categorization}
+\paragraph{Task:} The primary task is to assign topics/categories to each text/document. But there are different types of this task:
+\begin{itemize}
+  \item Assign document to one or more pre-defined categories
+  \item Given a document, find documents from the same category
+  \item Route message to an appropriate expert or department
+  \item Automatically organize content into folders\\
+        E.g. folders of similar content
+  \item Language identification (E.g. English vs French)
+  \item Automatic detection of spam sites/mail
+  \item Sentiment detection (E.g. is review positive or negative)
+\end{itemize}
 
-\textbf{MAC:} $p(\mathbf X|\mathbf \beta, \mathbf Z) = \prod\limits_{n,d} (
-   1 - \prod\limits_k \beta_{dk}^{z_{kn}})^{x_{dn}} \; ( \prod\limits_k \beta_{dk}^{z_{kn}})^{1-x_{dn}}$\\
-\hspace{2.75cm}$= \prod\limits_{n,d}(1-\beta_{d, \LL_n})^{x_{dn}} \; (\beta_{d, \LL_n})^{1-x_{dn}}$\\
+\paragraph{Taxonomies:} The practice/art to organize things or concepts. \\
+E.g. Open Directory Project (460'000 categories)\\
+E.g. IPC: section, class, subclass, group, ... (69'000 classes)
 
-\textbf{Final Model}: using noise model: $x_{dn} \hspace{-0.05cm} = \hspace{-0.05cm} (1 \hspace{-0.05cm}  - \hspace{-0.05cm} \xi_{dn})(\mathbf U \hspace{-0.05cm} \otimes \hspace{-0.05cm}  \mathbf Z)_{dn}+\xi_{dn}\nu_{dn}$)\\
-${p(\mathbf X| \mathbf Z,\hspace{-0.05cm}  \mathbf \beta,\hspace{-0.05cm}  \epsilon, \hspace{-0.05cm}  r) \hspace{-0.1cm}:
-   \hspace{-0.15cm}\prod\limits_{n,d}\hspace{-0.05cm} (\epsilon r \hspace{-0.08cm} + \hspace{-0.09cm}(1 \hspace{-0.05cm} - \hspace{-0.05cm}\epsilon) \hspace{-0.03cm} (1 \hspace{-0.05cm}  - \hspace{-0.05cm} \beta_{d, \mathcal L_n}))^{x_{dn}}
-   \hspace{-0.09cm}\cdot \hspace{-0.06cm}( \epsilon(1 \hspace{-0.05cm} - \hspace{-0.05cm} r) \hspace{-0.09cm} + \hspace{-0.09cm} (1 \hspace{-0.05cm} - \hspace{-0.05cm} \epsilon)\beta_{d,\mathcal L_n})^{1\text{-}x_{dn}}}$\\
-$\epsilon$: Noise probability, $r$ probability of noisy bits to be $1$
+\subsection{Categorization via Classification}
+Perform categorization by learning a classifier from training data.\\
+\textcolor{red}{Note:} Categorization via ``Expert Rules'' doesn't work well, due to:
+\begin{itemize}
+  \item [--] Low coverage
+  \item [--] Moderate accuracy
+  \item [--] Formalization of ``tacit knowledge'' is difficult
+\end{itemize}
 
-\subsection{Evaluating a Matrix Reconstruction}
-\begin{minipage}{0.46\columnwidth}
-  \textbf{Deviation:} ${1\over N\cdot D} ||X-\hat{ \mathbf{U}} \otimes \hat{\mathbf Z} ||_1$\\
-  \textbf{Coverage:} ${|\{(i,j)|\hat x_{i,j} = x_{i,j} = 1\}| \over |\{(i,j)|x_{i,j}=1|}$\\
-\end{minipage}
-\begin{minipage}{0.5\columnwidth}
-  \textbf{Deviating 1:} ${|\{(i,j)|\hat x_{i,j} = 1, x_{i,j} = 0\}| \over |\{(i,j)|x_{i,j}=1|}$\\
+\subsubsection{Optimal Bayes Classification}
+Assume we know:
+\begin{itemize}
+  \item The conditional probabilities $P(d|c)$
+  \item The class prior probabilities $P(c)$ with $\sum_c P(c) = 1$
+\end{itemize}
+Then the following classification rule is optimal for the misclassification loss (Bayes rule):
+\begin{align*}
+\footnotesize
+  c^{\star}(d) = \underset{c}{\text{argmax}} \; P(c \, | \, d) = \underset{c}{\text{argmax}} \; \frac{P(c) P(d \, | \, c)}{P(d)} = \underset{c}{\text{argmax}} \; P(c) \,  P(d \, | \, c)
+\end{align*}
+\textcolor{red}{Note:} Of course we don't know $P(d|c)$ and $P(c)$, hence approximate!
 
-  \textbf{Deviating 0:} ${|\{(i,j)|\hat x_{i,j} = 0, x_{i,j} = 1\}| \over |\{(i,j)|x_{i,j}=0|}$\\
-\end{minipage}
+\paragraph{Naive Bayes Classification:}
+Is an approximation to the optimal bayes classifier, which assumes conditional independence of words, given class:
+\begin{align*}
+  P(d | c) &= \prod_{\w} P(\w | c)^{\tf} \\
+  \log P(d | c) &= \sum_{\w} \tf \cdot \log P(\w | c)
+\end{align*}
+Now we can empirically estimate $P(c)$ and $P(\w | c)$ from labeled data
+\begin{align*}
+  \hat{P}(c) &= \frac{\# \{d : d \in c \}}{\# \{ d \}} &=& \hspace{0.2cm} \frac{\text{num documents in class}}{\text{num documents in collection}}\\
+  \hat{P}(\w | c) &= \frac{\sum_{d \in c} \tf}{\sum_{d \in c} \text{len}(d)} &=& \hspace{0.2cm}  \frac{\text{num word occurrences in class}}{\text{num words in collection}} \\
+\end{align*}
+Plug-in our estimates we get:
+\begin{align*}
+  c^{\star}(d) &= \underset{c}{\text{argmax}} \; \log \left[ \hat{P}(c) \cdot  \hat{P}(d \, | \, c) \right] \\
+               &= \underset{c}{\text{argmax}} \; \log \hat{P}(c) + \sum_{\w} \tf \cdot \log \hat{P}(\w | c)
+\end{align*}
+\subsubsection{Logistic Regression}
+
+\subsubsection{SVM}
 
 %%%%%%%%%%%%%%%%%%%%% Non-Negative MF %%%%%%%%%%%%%%%%%%%%%%%%%%
 
