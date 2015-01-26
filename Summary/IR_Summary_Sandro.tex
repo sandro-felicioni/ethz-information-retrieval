@@ -245,35 +245,36 @@ E.g. (walk, walked, walks, walking) $>$ walk or better $>$ good\\
   \item [--] very high dimensional space (slows down computation)
 \end{itemize}
 
-%%%%%%%%%%%%%%%%%%%%% GMM %%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\msection{Gaussian Mixture Model}
-$K$ mixture components: 
-$p(\mathbf x) = \sum\limits_{k=1}^K \pi_k p(\mathbf x | \theta_k) = \sum\limits_{k=1}^K \pi_k \mathcal N(\mathbf x | \mathbf \mu_k, \mathbf \Sigma_k)$\\
-Data-Likelihood: 
-$p(\mathbf X | \mathbf \pi, \mathbf\mu, \mathbf\Sigma) \hspace{-0.05cm} \overset{iid}{=} \hspace{-0.1cm} \prod\limits_{n=1}^N p(\mathbf x_n) \hspace{-0.05cm}  = \hspace{-0.1cm}  \prod\limits_{n=1}^N \sum\limits_{k=1}^K \hspace{-0.05cm}  \pi_k \mathcal N(\mathbf x_n| \mu_k, \mathbf \Sigma_k)$\\
-\vspace{-0.2cm}
-\subsection{EM-Algorithm}
-Maximize log-likelihood:
-$(\mathbf{\hat \pi}, \mathbf{\hat \mu }, \mathbf{\hat \Sigma}) \in \argmax\limits_{\mathbf \pi, \mathbf \mu, \mathbf \Sigma} \sum\limits_{n=1}^N \log \sum\limits_{k=1}^K  \pi_k \mathcal N (\mathbf x_n | \mathbf \mu_k, \mathbf \Sigma_k)$
-\begin{enumerate}[leftmargin=0.4cm]
-  \itemsep0em 
-  \item \emph{Introduce latent variable:} $z_{k} \in \{0, 1\}$,  $\sum\limits_k z_k = 1$, $p(z_k=1) = \pi_k$ and initialize $\mathbf \mu_k \text{ and }\mathbf \pi_k \text{. Set }\mathbf \Sigma_k$ to the given covariances.
-  \item \emph{E-step:} Compute expectation (responsibilities)\\
-  ${ {\small \gamma(z_{k,n}) = p(z_{k,n} = 1 | \mathbf{x}_n) =} \frac{p(z_k = 1) p(\mathbf{x}_n | z_k = 1)}{\sum\limits_{j=1}^K 
-  p(z_j = 1) p(\mathbf{x}_n | z_j = 1)} = 
-  {\pi_k \mathcal N(\mathbf x_n | \mathbf \mu_k, \mathbf \Sigma_k) \over \sum\limits_{j=1}^K \pi_j \mathcal N(\mathbf x_n | \mathbf \mu_j, \Sigma_j)}}$
-  \item \emph{M-step:} Re-estimate model parameters\\
-  $\mathbf \mu_k^\text{new} = {1\over N_k} \sum\limits_{n=1}^N \gamma(z_{k,n})\mathbf x_n$ and 
-  $\pi_k^{\text{new}} = {N_k\over N}$ where $N_k = \sum\limits_{n=1}^N \gamma(z_{k,n})$
-\end{enumerate}
-\textbf{Estimating K:} $\kappa(\cdot)$ = dof. E.g in GMM: $\kappa(\mathbf{U}, \mathbf{Z}) = K D + (K-1)$
-\begin{itemize}[leftmargin=0.5cm]
-  \itemsep0em 
-  \item \emph{AIC:} $- \ln p(\textbf{X} | \theta) + \kappa(\mathbf{U}, \mathbf{Z})$
-  \item \emph{BIC:} $- \ln p(\textbf{X} | \theta) + {1 \over 2} \kappa(\mathbf{U}, \mathbf{Z}) \ln N$
+%%%%%%%%%%%%%%%%%%%%% Scoring - LM %%%%%%%%%%%%%%%%%%%%%%%%%%
+\msection{5 - Scoring: Language and Topic Model}
+\subsection{Language Model}
+We want to estimate the term distribution P(w$|$d) so that we can compute the query probability P(q$|$d), which can directly be used for ranking:
+\begin{align*}
+  \textbf{Query Likelihood: }& &\text P(\text q | \text d) &= \text P(\text w_1, ... , \text w_l | \text d) = \prod_{\text w \in \text q} \text P(\text w | \text d)\\
+  \textbf{MLE: }&  &\hat{\text{P}}(\text w | \text d) &= \frac{\tf}{\sum_{\text w'} \text{tf(w$'$; d)}}\\
+  \textbf{Log Q. Likelihood: }& &\text{log P}(\text q | \text d) &= \sum_{\text w \in \text q} \text{log P}(\text w | \text d) \\ 
+  &&&= \sum_{\text w \in \text q} \text{log-tf(w; d)}
+\end{align*}
+\textbf{LM Properties:}
+\begin{itemize}[leftmargin=0.3cm]
+  \item [+] simple and clean model without complicated assumptions
+  \item [+] can use document collection to learn these distributions
+  \item [--] Assumption of query generation is too simplistic)
+  \item [--] Why should relevance be tied to term distribution?
 \end{itemize}
+\paragraph{MLE and Smoothing:} Use smoothing to get better estimates for small frequencies (and for unseen terms).\\
+E.g. linear interpolation with collection frequencies:
+\begin{align*}
+  \text{P(w$|$d)} &= (1 - \lambda_d) \; \hat{\text P}\text{(w$|$d)} + \lambda_d \; \underbrace{\frac{\cf}{\sum_{\text w'} \text{cf(w$'$)}}}_{\hat{\text P}(\text w)} \hspace{0.6cm} \lambda_d \in [0, 1] \\
+                  &= (1 - \lambda_d) \; \hat{\text P}\text{(w$|$d)} + \lambda_d \; \hat{\text{P}} \text{(w)}
+\end{align*}
+\textcolor{red}{Note:} Smoothing helps to alleviate problems with small frequencies
 
+\subsection{Topic Model}
+Topic Models are statistical models trained from the document collection. The idea is to identify topics and model documents as topic mixtures. This is a latent variable model, where the topics are the latent factors. 
+\begin{align*}
+  \text{P(w$|$d)} = \sum_t \text{P(w$|$t)} \text{P(t$|$d)}
+\end{align*}
 %%%%%%%%%%%%%%%%%%%%% RBAC %%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \msection{RBAC}
