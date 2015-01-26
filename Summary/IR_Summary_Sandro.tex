@@ -1,0 +1,502 @@
+%\documentclass[a4paper, twocolumn]{article}
+\documentclass[a4paper,11pt]{article}
+\usepackage{multicol}
+\usepackage{calc}
+\usepackage{ifthen}
+\usepackage[margin=1cm,top=0.1cm,left=0.01cm,right=0.1cm,bottom=0.2cm, nohead,nofoot]{geometry}
+
+\usepackage{mdwlist} % Avoid list double spacing
+
+\usepackage[usenames,dvipsnames]{color}
+\newcommand\todo[1]{\textcolor{red}{#1}}
+
+% Turn off header and footer
+\pagestyle{empty}
+%\usepackage{enumitem}
+\usepackage[shortlabels]{enumitem}
+\setlist{leftmargin=0.5cm,itemsep=0pt,topsep=0pt,partopsep=0pt,parsep=0pt}
+
+\usepackage[compact]{titlesec}
+\titleformat{\section}{\normalfont\normalsize\bfseries\color{BlueViolet}}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalfont\small\bfseries\color{blue}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalfont\small\bfseries\color{cyan}}{\thesubsubsection}{1em}{}
+%\titleformat{\paragraph}{\normalfont\small\bfseries\color{black}}{\theparagraph}{1em}{}
+\titleformat*{\paragraph}{\small\bfseries}
+
+\titlespacing*{\section}{0pt}{*0}{0pt}
+\titlespacing*{\subsection}{0pt}{*0}{0pt}
+\titlespacing*{\subsubsection}{0pt}{*0}{0pt}
+
+% Define BibTeX command
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+% Don't print section numbers
+\setcounter{secnumdepth}{0}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt plus 0.5ex}
+
+% math packages
+\usepackage{amsmath}
+\usepackage{amsfonts} % for mathbb for instance
+\usepackage{mathtools}
+\usepackage[amsmath, amsthm, framed, thmmarks]{ntheorem}
+
+% specifics about the pdf
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage[pdftex]{graphicx}
+\usepackage[pdftex,bookmarks,colorlinks,pdffitwindow]{hyperref}
+
+\usepackage[letterspace=-4]{microtype}
+
+\usepackage{setspace}
+\renewcommand{\baselinestretch}{1}  %0.2 still ok!
+
+% redefine greek letters
+\renewcommand{\phi}{\varphi}
+\renewcommand{\epsilon}{\varepsilon}
+
+% shortcuts in math mode
+\newcommand{\bs}{\boldsymbol}
+\newcommand{\mc}{\mathcal}
+\newcommand{\ds}{\displaystyle}
+\DeclarePairedDelimiter\absimpl{\lvert}{\rvert}
+\DeclarePairedDelimiter\normimpl{\lVert}{\rVert}
+\newcommand{\abs}[1]{\absimpl*{#1}}
+\newcommand{\norm}[1]{\normimpl*{#1}}
+\newcommand{\argmax}{\operatorname*{arg\,max}}
+\newcommand{\argmin}{\operatorname*{arg\,min}}
+
+% number sets
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\B}{\mathbb{B}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\LL}{\mathcal{L}}
+\newcommand{\powerset}{\mathcal P}
+\newcommand{\normal}{\mathcal N}
+
+\newcommand{\sectionline}{\noindent\makebox[\linewidth]{\rule{\columnwidth}{0.1pt}}}
+\newcommand{\msection}[1]{\section{#1}\vspace{-0.5mm}}
+% probabilities
+\newcommand{\Prob}[1]{\operatorname{Pr}\left[#1\right]}
+\newcommand{\Ex}[1]{\mathbb{E}\left[#1\right]}
+
+% misc
+\newcommand{\bigO}[1]{\mc O\left(#1\right)} % big-o notation
+
+\newcommand{\nop}[1]{} % temporarily remove from output
+
+\newcommand{\tf}{\text{tf(w; d)}} % tf - term frequency
+\newcommand{\cf}{\text{cf(w)}} % df - collection frequency
+\newcommand{\df}{\text{df(w)}} % df - document frequency
+\newcommand{\idf}{\text{idf(w)}} % idf - inverse document frequency
+
+% remove the paragraph indentation
+ \setlength{\parindent}{0in}
+
+\begin{document}
+\raggedright
+\lsstyle
+\small
+\setlength{\columnseprule}{0.1mm}
+\abovedisplayskip=0pt
+\belowdisplayskip=0cm
+\allowdisplaybreaks
+\itemsep-0.7em
+\labelsep=0.05cm
+
+\begin{multicols}{2}
+
+%%%%%%%%%%%%%%%%%%%%% Various %%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Various}
+\paragraph{Filtering (Stop word removal):} Get grid of common terms\\
++ reduce vocabulary size (space), - language specific
+
+\paragraph{Stemming:} Stripping off word endings to reduce a word to its stem/core (e.g. PorterStemmer).
+\begin{itemize}[leftmargin=0.3cm]
+  \item [+] reduce vocabulary size (space)
+  \item [+] unifies words with same meaning, but slight variation (foxes $>$ fox)
+  \item [--] language specific (for each language different rules)
+  \item [--] 1 extra step (quite expensive)
+  \item [--] can result in non-dictionary words
+  \item [--] words with different meaning can be mapped to same word (automatic / automate $>$ autom)
+\end{itemize}
+
+\paragraph{Lemmatization:} Mapping words to its root form. \\
+E.g. (walk, walked, walks, walking) $>$ walk or better $>$ good\\
++ get true dictionary form of a word, - hard to achieve in practice
+
+\paragraph{Term normalization (general):} Allows matching more terms\\
+\begin{itemize}[leftmargin=0.3cm]
+  \item [+] identify small variations of same term
+  \item [--] can lead to loss in precision
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%% Evaluation of Relevance %%%%%%%%%%%%%%%%%%%%%%%%%%
+\msection{3 - Evaluation of Relevance}
+\paragraph{Precision (P):} Fraction of retrieved documents that are relevant.
+\[
+  \text P = \frac{\# \text{ relevant items retrieved}}{\# \text{ items retrieved}} 
+          = \frac{\text{TP}}{\text{TP + FP}}
+          %= P(\text{X is relevant} | \text{X is retrieved})
+\]
+
+\paragraph{Recall (R):} Fraction of relevant documents that are retrieved.\\
+\[
+  \text R = \frac{\# \text{ relevant items retrieved}}{\# \text{ relevant items in collection}}
+          = \frac{\text{TP}}{\text{TP + FN}}
+          % P(\text{X is retrieved} | \text{X is relevant}) 
+\]
+\\
+\vspace{0.2cm}
+\textcolor{red}{High Precision vs High Recall:} It's a tradeoff!
+\begin{itemize}
+  \item By returning more documents $\Rightarrow$ recall increases monotonically\\
+        E.g. return all document $\Rightarrow$ recall of 1\\
+        \underline{Comparison shopping} $\Rightarrow$ wants high recall (user wants all offers)
+  \item By returning fewer documents $\Rightarrow$ often precision increases\\
+        E.g. return 1 document $\Rightarrow$ precision of 1 \underline{if} document is relevant\\
+        \underline{Web search} $\Rightarrow$ wants high precision (user just looks at few result)
+\end{itemize}
+
+\paragraph{F-Measure (F):} Something in between precision and recall
+\begin{align*}
+  F_{\beta} &= \frac{(\beta^2 + 1) \text{PR}}{\beta^2 \text P + \text R} \hspace{0.3cm} \text{where } \beta^2 = \frac{1 - \alpha}{\alpha} \\
+  F_1 &= \frac{2 \; \text{PR}}{\text{P + R}}
+\end{align*}
+
+\paragraph{A/B tests:} Can also run A/B tests with 2 systems\\
+\begin{enumerate}
+  \item Sample queries to evaluate on 2 systems
+  \item For each query show both results to raters
+  \item Raters judge which system is better
+  \item Compute overall statistics
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%% Scoring: TF-IDF %%%%%%%%%%%%%%%%%%%%%%%%%%
+\msection{4 - Scoring: TF-IDF}
+\paragraph{Scoring by matching terms:} We have the general expectation:
+\begin{itemize}[leftmargin=0.3cm]
+  \item If query term doesn't occur in document $\Rightarrow$ score contribution should be 0! 
+  \item The more frequent the query term in the document $\Rightarrow$ the higher the score contribution!
+  \item The more informative the query term $\Rightarrow$ the higher the score contribution! E.g. bomb
+  \item Given same term frequency $\Rightarrow$ shorter document should be preferred
+\end{itemize}
+
+\paragraph{Term Frequency:} Absolute frequency of a word in a document
+\begin{align*}
+  \tf =& \# \text{ word w in document d}\\
+  \text{log-tf(w; d)} =& \log_2\left(1 + \frac{\tf}{\text{document\_length}} \right)\\
+  \text{atf(w; d)} =& \frac{1}{2} + \frac{1}{2} \frac{\tf}{\max\{ \text{w}' : \text{tf(w$'$; d)} \}} \\
+  \text{score(\text{query}; d)} &= \sum_{\text w \in \text{query}} \text{log-tf(w; d)} 
+\end{align*}
+\textcolor{red}{Note:}
+\begin{itemize}[leftmargin=0.3cm]
+  \item Augmented-tf is very sensible to maximum (stop word pruning)
+  \item Using raw term frequencies (tf) is discouraged in practice
+\end{itemize}
+
+\paragraph{Document Frequency:} Quantifies importance of a query term
+\begin{align*}
+  \df =& \; \# \{ \text d : \tf > 0\} \\
+         =& \; \# \text{ documents in collection that contain w}
+\end{align*}
+\textcolor{red}{Note:}
+\begin{itemize}[leftmargin=0.3cm]
+  \item low df $\Rightarrow$ more informative/topical (e.g. bomb)
+  \item high df $\Rightarrow$ less informative/topical (e.g. the)
+\end{itemize}
+
+\paragraph{Inverse Document Frequency:}\hspace{-0.3cm}Translates df into term weights\\
+\begin{align*}
+  \idf = \log\left(\frac{n}{\df} \right) = \log(n) - \log(\df) \hspace{0.5cm} n = \text{num documents}
+\end{align*}
+\textcolor{red}{Note:}
+\begin{itemize}[leftmargin=0.3cm]
+  \item low idf $\Rightarrow$ less informative/topical (e.g. the)
+  \item high idf $\Rightarrow$ more informative/topical (e.g. bomb)
+\end{itemize}
+
+\paragraph{Collection Frequency:} Like term freq. but in whole collection
+\begin{align*}
+  \cf &= \sum_d \tf \\
+         &= \# \text{word occurrences in whole collection}\\
+  \text{rcf(w)} &= \frac{\cf}{\sum\limits_{\text{w}'} \text{cf(w$'$)}}
+\end{align*}
+
+\paragraph{TF-IDF:} Combine both tf and idf in one term weight
+\begin{align*}
+  \text{tf-idf(w; d)} &= \text{log-tf(w; d)} \cdot \idf \\
+                      &= \log \left(1 + \frac{\tf}{\text{document\_length}} \right) \cdot \log \left( \frac{n}{\df} \right)\\
+  \text{score(query; d)} &= \sum_{\text{w} \in \text{query}} \text{tf-idf(w; d)}
+\end{align*}
+
+\textcolor{red}{Note:} We want that both tf(w) and idf(w) are large!
+
+\paragraph{Vector Space Model:} Represent both documents and queries in vector space (BoW) and rank documents according to their proximity to the query (e.g. use cosine distance).
+\begin{itemize}[leftmargin=0.3cm]
+  \item [+] can use linear algebra for computation
+  \item [--] very high dimensional space (slows down computation)
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%% GMM %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\msection{Gaussian Mixture Model}
+$K$ mixture components: 
+$p(\mathbf x) = \sum\limits_{k=1}^K \pi_k p(\mathbf x | \theta_k) = \sum\limits_{k=1}^K \pi_k \mathcal N(\mathbf x | \mathbf \mu_k, \mathbf \Sigma_k)$\\
+Data-Likelihood: 
+$p(\mathbf X | \mathbf \pi, \mathbf\mu, \mathbf\Sigma) \hspace{-0.05cm} \overset{iid}{=} \hspace{-0.1cm} \prod\limits_{n=1}^N p(\mathbf x_n) \hspace{-0.05cm}  = \hspace{-0.1cm}  \prod\limits_{n=1}^N \sum\limits_{k=1}^K \hspace{-0.05cm}  \pi_k \mathcal N(\mathbf x_n| \mu_k, \mathbf \Sigma_k)$\\
+\vspace{-0.2cm}
+\subsection{EM-Algorithm}
+Maximize log-likelihood:
+$(\mathbf{\hat \pi}, \mathbf{\hat \mu }, \mathbf{\hat \Sigma}) \in \argmax\limits_{\mathbf \pi, \mathbf \mu, \mathbf \Sigma} \sum\limits_{n=1}^N \log \sum\limits_{k=1}^K  \pi_k \mathcal N (\mathbf x_n | \mathbf \mu_k, \mathbf \Sigma_k)$
+\begin{enumerate}[leftmargin=0.4cm]
+  \itemsep0em 
+  \item \emph{Introduce latent variable:} $z_{k} \in \{0, 1\}$,  $\sum\limits_k z_k = 1$, $p(z_k=1) = \pi_k$ and initialize $\mathbf \mu_k \text{ and }\mathbf \pi_k \text{. Set }\mathbf \Sigma_k$ to the given covariances.
+  \item \emph{E-step:} Compute expectation (responsibilities)\\
+  ${ {\small \gamma(z_{k,n}) = p(z_{k,n} = 1 | \mathbf{x}_n) =} \frac{p(z_k = 1) p(\mathbf{x}_n | z_k = 1)}{\sum\limits_{j=1}^K 
+  p(z_j = 1) p(\mathbf{x}_n | z_j = 1)} = 
+  {\pi_k \mathcal N(\mathbf x_n | \mathbf \mu_k, \mathbf \Sigma_k) \over \sum\limits_{j=1}^K \pi_j \mathcal N(\mathbf x_n | \mathbf \mu_j, \Sigma_j)}}$
+  \item \emph{M-step:} Re-estimate model parameters\\
+  $\mathbf \mu_k^\text{new} = {1\over N_k} \sum\limits_{n=1}^N \gamma(z_{k,n})\mathbf x_n$ and 
+  $\pi_k^{\text{new}} = {N_k\over N}$ where $N_k = \sum\limits_{n=1}^N \gamma(z_{k,n})$
+\end{enumerate}
+\textbf{Estimating K:} $\kappa(\cdot)$ = dof. E.g in GMM: $\kappa(\mathbf{U}, \mathbf{Z}) = K D + (K-1)$
+\begin{itemize}[leftmargin=0.5cm]
+  \itemsep0em 
+  \item \emph{AIC:} $- \ln p(\textbf{X} | \theta) + \kappa(\mathbf{U}, \mathbf{Z})$
+  \item \emph{BIC:} $- \ln p(\textbf{X} | \theta) + {1 \over 2} \kappa(\mathbf{U}, \mathbf{Z}) \ln N$
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%% RBAC %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\msection{RBAC}
+Given user-permission matrix $\mathbf X \in \R^{D \times N}$, find roles $\mathbf U = [\mathbf{u}_1, \ldots, \mathbf{u}_K] \in \B^{D \times K}$ and assignment $\mathbf Z = [\mathbf{z}_1, \ldots, \mathbf{z}_N] \in \B^{K \times N}$ s.t:\\
+$\mathbf X = \mathbf U \otimes \mathbf Z \quad \Longleftrightarrow \quad x_{dn} = \bigvee_k [u_{dk} \land z_{kn}]$\\
+\vspace{0.2cm}
+Model with $\beta = (\beta_{dk})^{D \times K}$: probability that role k has \textbf{no} permission d\\
+\textbf{SAC:} ${p(\mathbf X|\mathbf \beta, \mathbf Z) \hspace{-0.08cm} = \hspace{-0.1cm} \prod\limits_{n,d} p(x_{dn} \hspace{-0.05cm} = \hspace{-0.05cm} 1| \beta_{d \cdot}, \mathbf{z}_{\cdot n})^{x_{dn}} \cdot p(x_{dn} = 0 | \beta_{d \cdot}, \mathbf{z}_{\cdot n})^{1 - x_{dn}}}$\\ 
+\hspace{2.55cm}$= \prod\limits_{n,d}(1-\beta_{d, k_n})^{x_{dn}} \; (\beta_{d, k_n})^{1-x_{dn}}$\\
+
+\textbf{MAC:} $p(\mathbf X|\mathbf \beta, \mathbf Z) = \prod\limits_{n,d} (
+   1 - \prod\limits_k \beta_{dk}^{z_{kn}})^{x_{dn}} \; ( \prod\limits_k \beta_{dk}^{z_{kn}})^{1-x_{dn}}$\\
+\hspace{2.75cm}$= \prod\limits_{n,d}(1-\beta_{d, \LL_n})^{x_{dn}} \; (\beta_{d, \LL_n})^{1-x_{dn}}$\\
+
+\textbf{Final Model}: using noise model: $x_{dn} \hspace{-0.05cm} = \hspace{-0.05cm} (1 \hspace{-0.05cm}  - \hspace{-0.05cm} \xi_{dn})(\mathbf U \hspace{-0.05cm} \otimes \hspace{-0.05cm}  \mathbf Z)_{dn}+\xi_{dn}\nu_{dn}$)\\
+${p(\mathbf X| \mathbf Z,\hspace{-0.05cm}  \mathbf \beta,\hspace{-0.05cm}  \epsilon, \hspace{-0.05cm}  r) \hspace{-0.1cm}:
+   \hspace{-0.15cm}\prod\limits_{n,d}\hspace{-0.05cm} (\epsilon r \hspace{-0.08cm} + \hspace{-0.09cm}(1 \hspace{-0.05cm} - \hspace{-0.05cm}\epsilon) \hspace{-0.03cm} (1 \hspace{-0.05cm}  - \hspace{-0.05cm} \beta_{d, \mathcal L_n}))^{x_{dn}}
+   \hspace{-0.09cm}\cdot \hspace{-0.06cm}( \epsilon(1 \hspace{-0.05cm} - \hspace{-0.05cm} r) \hspace{-0.09cm} + \hspace{-0.09cm} (1 \hspace{-0.05cm} - \hspace{-0.05cm} \epsilon)\beta_{d,\mathcal L_n})^{1\text{-}x_{dn}}}$\\
+$\epsilon$: Noise probability, $r$ probability of noisy bits to be $1$
+
+\subsection{Evaluating a Matrix Reconstruction}
+\begin{minipage}{0.46\columnwidth}
+  \textbf{Deviation:} ${1\over N\cdot D} ||X-\hat{ \mathbf{U}} \otimes \hat{\mathbf Z} ||_1$\\
+  \textbf{Coverage:} ${|\{(i,j)|\hat x_{i,j} = x_{i,j} = 1\}| \over |\{(i,j)|x_{i,j}=1|}$\\
+\end{minipage}
+\begin{minipage}{0.5\columnwidth}
+  \textbf{Deviating 1:} ${|\{(i,j)|\hat x_{i,j} = 1, x_{i,j} = 0\}| \over |\{(i,j)|x_{i,j}=1|}$\\
+
+  \textbf{Deviating 0:} ${|\{(i,j)|\hat x_{i,j} = 0, x_{i,j} = 1\}| \over |\{(i,j)|x_{i,j}=0|}$\\
+\end{minipage}
+
+%%%%%%%%%%%%%%%%%%%%% Non-Negative MF %%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\msection{Non-Negative MF}
+Given Document-term matrix $\mathbf X\in \R_+^{D\times N}$. We want a NMF for which holds:\\
+\vspace{-0.1cm}\hspace{2.5cm}
+$\mathbf X \approx \mathbf{UZ} \ \ \text{with}\ \  \mathbf U\in \R_+^{D \times K}\ \text{and}\ \mathbf Z\in \R_+^{K\times N}$
+\subsection{Probabilistic LSI}
+\textbf{Generate tuple $(document, word)$:}
+\begin{enumerate}[leftmargin=0.5cm]
+  \itemsep0em 
+  \item Sample document according to $P(document)$
+  \item Sample word according to $P(word|document)$
+\end{enumerate}
+Assume a factorization: \hspace{-0.2cm}
+$P(word|doc) \hspace{-0.1cm} = \hspace{-0.2cm} \sum\limits_{\text{topic}} \hspace{-0.1cm} P(word|topic)P(topic|doc)$\\
+Therefore: \hspace{1.6cm}$P(word, doc) \hspace{-0.05cm} = \hspace{-0.1cm} \sum\limits_{\text{topic}} \hspace{-0.1cm}  P(word|topic)P(topic, doc)$\\
+Rewrite: \hspace{1.8cm}$P(d\text{th } word,\ n\text{th } document) = x_{dn} = (\mathbf{UZ})_{dn}$\\
+  
+\subsection{Quadratic NMF}
+Consider non-negative \textbf{X} and quadratic cost fnc. (like in K-Means):\\
+\hspace{1cm}$\min\limits_{\mathbf U,\ \mathbf Z} J(\mathbf U, \mathbf Z) = {1\over 2} || \mathbf X- \mathbf U \mathbf Z||_F^2\qquad \text{s.t.} \quad u_{dk},\ z_{kn} \in \R_0^+$\\
+% with the Kullback-Leibler Divergence:
+% \begin{align*}
+% \min_{\mathbf U, \mathbf Z} = \sum_{d=1}^D \sum_{n=1}^N x_{dn} \log\left({x_{dn} \over (\mathbf U \mathbf Z)_{dn}}\right)\\
+%  \sum_{d=1}^D u_{dk} = 1 \forall k \qquad \sum_{k,n} z_{kn} = 1.
+% \end{align*}
+\textbf{Algorithm:}
+\begin{enumerate}[leftmargin=0.5cm]
+  \itemsep0em 
+  \item Init $\mathbf U,\ \mathbf Z$ with pos. random values
+  \item loop:\\
+  \emph{Update factors} \textbf{U}: $u_{dk} = u_{dk}{ (\mathbf X \mathbf Z^\top)_{dk} \over (\mathbf U \mathbf Z \mathbf Z^\top)_{dk}}$\\
+  \emph{Update coefficients} \textbf{Z}: $z_{kn} = z_{kn} {(\mathbf U^\top \mathbf X)_{kn} \over (\mathbf U^\top \mathbf U \mathbf Z)_{kn}}$
+ %&\qquad \text{Update factors } \mathbf U: \ u_{dk} = u_{dk}{ (\mathbf X \mathbf Z^T)_{dk} \over (\mathbf U \mathbf Z \mathbf Z^T)_{dk}}\\
+ %&\qquad \text{Update coefficients} \mathbf Z:\ z_{kn} = z_{kn} {(\mathbf U^T \mathbf X)_{kn} \over (\mathbf U^T\mathbf U \mathbf Z)_{kn}}
+\end{enumerate}
+This leads to $\mathbf X \approx \mathbf{UZ}$ when $K<N$\\
+\vspace{0.1cm}
+\textbf{Derivation:}\\
+Lagrangian: $L(\mathbf{U}, \mathbf{Z}, \boldsymbol{\alpha}, \boldsymbol{\beta})= J(\mathbf{U}, \mathbf{Z})-tr(\boldsymbol \alpha \mathbf{U}^\top) - tr(\boldsymbol \beta \mathbf{Z}^\top)$\\
+$J(\mathbf U, \mathbf Z) = {1\over 2} || \mathbf X- \mathbf U \mathbf Z||_F^2 = \frac{1}{2} tr\left( (X-UZ)(X-UZ)^T \right)$\\
+\hspace{3.3cm}$= \frac{1}{2} (\text{tr}(\mathbf{X} \mathbf{X}^\top) \hspace{-0.05cm} - \hspace{-0.05cm} 2\text{tr}(\mathbf{X} \mathbf{U}^\top \mathbf{Z}^\top) \hspace{-0.05cm} + \hspace{-0.05cm} \text{tr}(\mathbf{U} \mathbf{Z} \mathbf{Z}^\top \mathbf{U}^\top))$\\
+Taking derivatives and setting to 0 leads to above update rules:
+$\frac{\partial J}{\partial \mathbf{U}} = \mathbf{U} \mathbf{Z} \mathbf{Z}^\top - \mathbf{X} \mathbf{Z}^\top \overset{!}{=} 0$ 
+and 
+$\frac{\partial J}{\partial \mathbf{Z}} = \mathbf{U}^\top \mathbf{U} \mathbf{Z} - \mathbf{U}^\top \mathbf{X} \overset{!}{=} 0$
+
+\msection{Sparse Coding}
+Given signal $f = \mathbf{x}$ and orthonormal basis $\mathbf{U} = [ \mathbf{u}_1, \ldots, \mathbf{u}_K]$:\\
+\textbf{Full reconstruction:} 
+$f = \sum \limits_{k=1}^K \langle f, u_k\rangle u_k = \sum\limits_{k=1}^K z_k u_k$\\
+\textbf{Approx. (compression):} \hspace{-0.05cm}$\hat{f} \hspace{-0.05cm} = \hspace{-0.2cm}\sum \limits_{k\in \sigma} \hspace{-0.1cm} z_k u_k$ where $\sigma$ is a subset of size $\tilde K$\\
+\textbf{Reconstruction error:} $||f-\hat f||_2^2 = \langle f - \hat f, f - \hat f \rangle = \ldots = \sum \limits_{k \notin \sigma} z_k^2$\\
+\textbf{Fourier basis:}Global support:+for sine-like sig,-for localized sig.\\
+\textbf{Wavelet basis:}Local support:+for localizd sig,-for nonvanishing sig\\
+\vspace{0.1cm}
+
+\subsection{Compressive Sensing}
+Assume $\mathbf{x} \in \R^{D \times 1}$ is sparse in some orthonormal basis $\textbf{U} \in \R^{D \times D}$ with $K$ large coefficients in $\mathbf{z} \in \R^{D \times 1}$: $\mathbf x = \mathbf{U} \mathbf z$\\
+\textbf{Idea:} Instead of saving $\mathbf{x}$ we save $\mathbf{y}$ with dimension $M << D$\\
+\emph{Store $\mathbf{y}$:} \hspace{0.61cm}$ \mathbf y = \mathbf W \mathbf x = \mathbf W \mathbf U \mathbf z = \mathbf \Theta \mathbf z \quad$ with $\quad \mathbf \Theta = \mathbf W \mathbf U \ \in \R^{M\times D}$\\
+
+\emph{Restore $\mathbf x$:} \hspace{0.03cm}
+$\mathbf{z}^\star = \argmin \limits_{\mathbf{z}} ||\mathbf{z}||_0 \qquad \text{s.t.}\ \mathbf \Theta \mathbf z = \mathbf y$ \hspace{0.5cm}(use MP)\\
+\hspace{1.8cm} $\mathbf{x} = \mathbf{U} \mathbf{z}^\star$
+
+\subsection{Overcomplete dictionaries}
+Assume \textbf{U} $\in \R^{D \times L}$ is overcomplete\\
+\textbf{Objective:} 
+$\mathbf{z}^* \in \argmin \limits_z ||\mathbf z||_0 \quad \text{s.t.}\quad \mathbf x = \mathbf U \mathbf z$ \hspace{0.3cm}(NP hard problem)
+
+\subsubsection{Coherence}
+Increasing the overcompleteness factor ${L \over D}$: Increases the sparsity of the coding, but also increases the linear dependency between atoms.
+
+\vspace{0.1cm}
+\textbf{coherence:} 
+$m(\mathbf U) = \max_{i, j: \; i \neq j} | \mathbf u_i^\top \mathbf u_j |$
+\begin{itemize}[leftmargin=0.5cm]
+  \itemsep0em 
+  \item $m(\mathbf B) = 0$ for an orthogonal basis $\mathbf B$
+  \item $m([\mathbf B \mathbf u]) \geq {1 \over \sqrt{D}}$ if atom $\mathbf u$ added to $\mathbf B$
+\end{itemize}
+
+\subsubsection{Matching Pursuit (MP)}
+Greedy algo to approximate NP hard problem iteratively.\\
+\textbf{Objective:} $\textbf{z}^\star \in \argmin \limits_\textbf{z} || \mathbf{x} - \mathbf{U} \mathbf{z}||_2 \quad \text{s.t.} \quad ||z||_0 \leq K$\\
+\textbf{Algo:}
+At each iter., take a step in direction of the atom $\mathbf u_{d^\star}$ that minimizes at most the residual $||\mathbf x \text{-} \mathbf U \mathbf z||_2$ where $d^\star \hspace{-0.1cm} \in \hspace{-0.05cm} \argmax_d | \langle \mathbf{r}, \hspace{-0.05cm} \mathbf{u}_d \rangle|$\\
+\emph{Note:} minimizing $||\mathbf{r}||_2$ is equiv. as maxim. abs. correlation $| \langle \mathbf{r}, \mathbf{u}_d \rangle |$
+\begin{enumerate}[leftmargin=0.5cm]
+  \itemsep0em 
+  \item Start with zero vector $\mathbf z = \mathbf 0$ and residual $\mathbf r = \mathbf x$
+  \item While $|| \mathbf{z} ||_0 < K$:\\
+    \textbf{Criteria:} $d^\star = \argmax_d | \mathbf u_d^\top \mathbf r |$\\
+    \textbf{Update:} $z_{d^\star} = z_{d^\star} + \mathbf u_{d^\star}^\top \mathbf r$\\
+        \hspace{1.55cm} $\mathbf r = \mathbf r - (\mathbf u_{d^\star}^\top \mathbf r) \; \mathbf u_{d^\star}$
+\end{enumerate}
+Exact recovery when $K < {1 \over 2} \left( 1 + {1 \over m(\mathbf U)} \right)$ ($K$: \# non-zero elements)
+\vfill
+\columnbreak
+\section{Dictionary Learning}
+Factorize training set $\mathbf X \in \R^{D\times N}$ into a dictionary $\mathbf U \in \R^{D\times L}$ and sparse matrix $\mathbf Z \in \R^{L\times N}$ such that:
+$(\mathbf U^*, \mathbf Z^*) \in \argmin \limits_{\mathbf U, \mathbf Z} ||\mathbf X - \mathbf U \mathbf Z||_F^2$ \\
+
+\textbf{Algorithm:} Iterative greedy minimization between 2 steps
+\begin{enumerate}[leftmargin=0.4cm]
+  \itemsep0em 
+  \item \textbf{Coding step}: Fix \textbf{U} and find sparsest possible \textbf{Z}\\
+  \emph{Objective:} $\mathbf Z^{t+1} \hspace{-0.1cm} \in \hspace{-0.05cm} \argmin \limits_{\mathbf Z} || \mathbf X - \mathbf U^t \mathbf Z||_F^2$, subject to $\mathbf Z$ being sparse\\ 
+  \hspace{1.1cm}$\Rightarrow \mathbf{z}_n^{t+1} \in \argmin \limits_{\mathbf{z}} ||\mathbf{z}||_0 \quad$ s.t. $\quad || \mathbf x_n - \mathbf U^t \mathbf z||_2 \leq \sigma ||\mathbf x_n||_2$
+
+  \item \textbf{Dictionary update step}: Fix \textbf{Z} and find best \textbf{U} \\
+  \emph{Objective:} $\mathbf U^{t+1} \hspace{-0.05cm} \in \hspace{-0.05cm} \argmin \limits_{\mathbf U} ||\mathbf X - \mathbf U \mathbf Z^{t+1}||_F^2$, subject to  $||\mathbf u_l||_2=\hspace{-0.05cm}1$ $\forall l$ \\
+  \emph{Approximation}:  update one atom $\mathbf{u}_l$ at a time for all $l = 1, ..,L$:
+
+ \begin{enumerate}[leftmargin=0.5cm]
+  \itemsep0em 
+  \item Set $\tilde{\mathbf U} = [\mathbf u_1^t \ldots \mathbf u_l \ldots \mathbf u_L^t]$ (fix all atoms except $\mathbf u_l$).
+  \item Isolate $\mathbf R_l^t$, the residual that is due to atom $\mathbf u_l$:\\
+  $|| \mathbf X - \tilde{\mathbf U} \cdot \mathbf Z^{t+1} ||_F^2 
+     %= ||  \mathbf X - (\sum\limits_{e\neq l}\mathbf u_e^t(\mathbf z_e^{t+1})^\top + \mathbf u_l (\mathbf z_l^{t+1})^\top )||
+    = || \mathbf R_l^t - \mathbf u_l ( \mathbf z_l^{t+1})^\top||_F^2$\\
+    where $\mathbf R_l^t = X - \sum_{i \neq l} \mathbf{u}_i (\mathbf{z}_i^{t+1})^\top \quad$\\
+    Note: sum represents \textbf{U}\textbf{Z} ohne $\textbf{u}_l$
+
+  \item Find $\mathbf u_l^\star$ that minimizes $\mathbf R_l^t$, subject to $||\mathbf u_l^\star||_2 = 1$ (use SVD):\\
+  $\mathbf R_l^t = \mathbf U \mathbf D \mathbf V^\top = \sum_i d_i \mathbf u_i \mathbf v_i^\top \quad \Rightarrow \mathbf{u}_l^\star = $ first column of U 
+ \end{enumerate}
+\end{enumerate}
+\vspace{0.1cm}
+\msection{Convex Optimization}
+\textbf{Primal problem:} 
+$ \min_{\textbf{x}} f(\mathbf{x}) \quad \text{subject to} \quad g_i(\mathbf{x}) \leq 0, i = 1, \ldots, m$\\
+\hspace{6.6cm} $h_i(\mathbf{x}) = 0, i = 1, \ldots, p$\\
+\textbf{Lagrangian:} 
+$L(\mathbf{x}, \lambda, \nu) \hspace{-0.05cm} = \hspace{-0.05cm} f(\mathbf{x}) + \hspace{-0.1cm} \sum\limits_{i=1}^m \lambda_i g_i(\mathbf{x}) + \hspace{-0.1cm} \sum\limits_{i=1}^p \nu_i h_i(\mathbf{x})$ where $\lambda \hspace{-0.05cm} \geq \hspace{-0.05cm} 0$\\
+\textbf{Dual function:}
+$d(\lambda, \nu) = \inf\limits_\textbf{x} L(\mathbf{x}, \lambda, \nu)$\\
+\textbf{Dual problem:}
+$\max\limits_{\lambda, \nu} \; d(\lambda, \nu) \quad \text{subject to} \quad \lambda \geq 0$\\
+\textbf{Recover optimal \textbf{x}}: $\textbf{x}^\star = \argmin_\mathbf{x} L(\textbf{x}, \lambda^\star, \nu^\star)$
+
+\textbf{Note:} Dual function is a lower bound on optimal value $p^\star$ of primal!\\
+\emph{Proof:} $d(\lambda, \nu) = \inf\limits_{\mathbf{x}} L(\mathbf{x}, \lambda, \nu) \leq  
+\inf\limits_{\tilde{\mathbf{x}}} L(\tilde{\mathbf{x}}, \lambda, \nu) \leq
+\min\limits_{\tilde{\mathbf{x}}} f(\mathbf{\tilde{x}}) = p^\star$
+
+
+\subsection{Convex optimization with equality constraints}
+\textbf{Primal problem:} $\min_{x} f(x) \quad \text{subject to} \quad Ax = b$\\
+\textbf{Lagrangian:} $L(\mathbf{x}, \nu) = f(x) + \nu^\top(A x - b)$\\
+\textbf{Dual function:} $d(\nu) = \inf_x L(x, \nu)$\\
+\textbf{Dual problem:} $\max\limits_{\nu} \; d(\nu)$\\
+
+\underline{\textbf{Gradient Method for dual:}}\\
+\hspace{0.2cm}$x^{k+1} = \argmin_x L(x, \nu^k)$ \\
+\hspace{0.2cm}$\nu^{k+1} \hspace{-0.05cm} = \hspace{-0.05cm} \nu^{k} \hspace{-0.05cm} + \hspace{-0.05cm} \alpha^k \nabla d(\nu^k) \hspace{-0.05cm} = \hspace{-0.05cm} \nu^{k} \hspace{-0.05cm} + \hspace{-0.05cm} \alpha^k \frac{\partial}{\partial \nu} L(x^{k+1}, \nu^{k}) \hspace{-0.05cm} = \hspace{-0.05cm} \nu^{k} \hspace{-0.05cm} + \hspace{-0.05cm} \alpha^k (A x^{k+1} - b)$\\
+
+\underline{\textbf{Dual decomposition:}} If $f(x)$ with $x \in \R^n$ is separable than $L(x, \nu)$ is separable and we can split the x-min step:
+\\
+$f(x) = f_1(x_1) + ... + f_n(x_n) \Rightarrow L(x, \nu) = L_1(x_1, \nu) + ... + L_n(x_n, \nu) - \nu^\top b$\\
+\hspace{0.2cm}$x_i^{k+1} = \argmin_{x_i} L_i(x_i, \nu^k) = \argmin_{x_i} f_i(x_i) + \nu^\top A_i x_i \quad i=1..n$ \\
+\hspace{0.2cm}$\nu^{k+1} = \nu^{k} + \alpha^k \nabla d(\nu^k) = \nu^{k} + \alpha^k (\sum_{i=1}^n A_i x_i^{k+1} - b)$
+
+\underline{\textbf{Method of Multipliers:}} Augment Lagrangian to $L_\rho$ with ${\rho \over 2} ||\cdot||_2^2$\\
+$L_\rho (x,\nu) = f(x) + \nu^T (Ax-b) + {\rho \over 2} ||Ax-b||_2^2$\\
+\hspace{0.2cm}$x^{k+1} = \argmin_x L_\rho (x,\nu^k)$\\
+\hspace{0.2cm}$\nu^{k+1} = \nu^k + \rho \nabla d(\nu^k) = \nu^k + \rho (Ax^{k+1}-b)$\\
+
+Choose $\rho$ as step size, since $x^{k+1}$ minimizes $L_\rho(x, \nu^k)$:
+\[
+ 0 =\nabla_x L\rho(x^{k+1}, \nu^k) = \nabla_x f(x^{k+1}) + \underbrace{A^T (\nu^k +\rho(Ax^{k+1}-b))}_{A^T \nu^{k+1}}
+\]
+
+\underline{\textbf{Alternating Direction Method of Multipliers:}}\\
+Since aug. Lag. $L_\rho$ not separable anymore, can't parallelize x-min!\\
+Primal: $\min_{x, z} f(x) + p(z)\ \text{ subject to }\ Ax+Bz = c \quad f,p \text{ convex}$\\
+$L(x, z, \nu) = f(x) + p(z)+ \nu^T (Ax+Bz-c)$\\
+$L_\rho(x, z, \nu) = f(x) + p(z)+ \nu^T (Ax+Bz-c) + {\rho \over 2}||Ax + Bz- c||_2^2$\\
+\hspace{0.2cm}$x^{k+1} = \argmin_x L_\rho (x, z^k, \nu^k)$\\
+\hspace{0.2cm}$z^{k+1} = \argmin_z L_\rho(x^{k+1}, z, \nu^k)$\\
+\hspace{0.2cm}$\nu^{k+1} = \nu^k + \rho \nabla d(\nu^k) = \nu^k + \rho(Ax^{k+1}+Bz^{k+1}-c)$\\
+Primal Feasibility condition: $Ax^\star + Bz^\star - c = 0$\\
+Dual Feasibiliy conditions:$\nabla f(x^\star) \hspace{-0.05cm} + \hspace{-0.05cm} A^\top \nu^\star \hspace{-0.05cm} = \hspace{-0.05cm} 0$ and $\nabla p(z^\star) \hspace{-0.05cm} + \hspace{-0.05cm} B^\top \nu^\star \hspace{-0.05cm} = \hspace{-0.05cm} 0$\\
+\vspace{0.1cm}
+\section{Robust PCA}
+\textbf{Original:} $\min_{L, S} \text{rank}(\mathbf{L}) + \lambda \text{card}(\mathbf{S}) \quad \text{subject to} \quad \mathbf{L} + \mathbf{S} = \mathbf{X}$\\
+\underline{\textbf{Convex relaxation:}} $\min_{L, S} ||\mathbf{L}||_* + \lambda ||\mathbf{S}||_1  \hspace{-0.1cm} \quad  \hspace{-0.1cm}\text{subject to} \quad \mathbf{L} + \mathbf{S} = \mathbf{X}$\\
+Exact(L$^\star$=L$_0$, S$^\star$=S$_0$) with prob. $1-\mathcal O(n^{-10})$,PCP with $\lambda  \hspace{-0.05cm} =  \hspace{-0.05cm} {1 \over \sqrt n}$for:\\
+\hspace{0.2cm}$\mathbf L_0:\ n\times n, \text{ of } rank(\mathbf L_0)\leq \rho_r n \mu^{-1} (\log n)^{-2}$\\
+\hspace{0.2cm}$\mathbf S_0:\ n\times n, \text{ random sparsity pattern of cardinality }m \leq \rho_s n^2$\\
+\underline{\textbf{RPCA for CF:}}
+$\min_{L, S} ||\mathbf{L}||_* + \lambda ||\mathbf{S}||_1 \quad \text{s.t.} \quad \mathbf{L}_{ij} + \mathbf{S}_{ij} = \mathbf{X}_{ij}$
+\end{multicols}%}
+\end{document}
