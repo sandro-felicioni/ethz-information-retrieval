@@ -97,6 +97,8 @@
 \newcommand{\df}{\text{df(w)}} % df - document frequency
 \newcommand{\idf}{\text{idf(w)}} % idf - inverse document frequency
 \newcommand{\w}{\text{w}}
+\newcommand{\btheta}{\boldsymbol \theta}
+
 % remove the paragraph indentation
  \setlength{\parindent}{0in}
 
@@ -317,7 +319,7 @@ Then the following classification rule is optimal for the misclassification loss
 \textcolor{red}{Note:} Of course we don't know $P(d|c)$ and $P(c)$, hence approximate!
 
 \paragraph{Naive Bayes Classification:}
-Is an approximation to the optimal bayes classifier, which assumes conditional independence of words, given class:
+It's an approximation to the optimal bayes classifier, which assumes conditional independence of words, given class:
 \begin{align*}
   P(d | c) &= \prod_{\w} P(\w | c)^{\tf} \\
   \log P(d | c) &= \sum_{\w} \tf \cdot \log P(\w | c)
@@ -332,57 +334,63 @@ Plug-in our estimates we get:
   c^{\star}(d) &= \underset{c}{\text{argmax}} \; \log \left[ \hat{P}(c) \cdot  \hat{P}(d \, | \, c) \right] \\
                &= \underset{c}{\text{argmax}} \; \log \hat{P}(c) + \sum_{\w} \tf \cdot \log \hat{P}(\w | c)
 \end{align*}
+\textcolor{red}{Issue:} Potentially many zero probabilities P(w$|$c) = 0! Hence every document containing an unseen word in a given class will never be assigned to that class (since product is 0 or log(0) = -$\infty$)!
+
+\textbf{Laplace Smoothing:} Make small modification to resolve issue.
+\begin{align*}
+  \hat{P}(\w | c) = \frac{\sum_{d \in c} \tf + \alpha}{\sum_{d \in c} \text{len}(d) + \alpha \cdot \# \w} \hspace{1cm} \text{where } \alpha > 0
+\end{align*}
+Laplace smoothing: $\alpha = 1$
+
 \subsubsection{Logistic Regression}
+Use discriminative model to directly estimate $P(c | d)$:
+\begin{align*}
+  P(c \, | \, d; \btheta) &= \frac{1}{1 + \exp(-c \cdot \btheta^\top \textbf x_d)} \hspace{1cm} \text{where } c \in \{-1, 1\}\\
+\end{align*}
+We then want to maximize the joint Likelihood or equivalently minimize the negative Log Likelihood:
+\begin{align*}
+  \max_{\btheta} P(c_1,...,c_n | d_1,...,d_n; \btheta) =& \max_{\btheta} \prod_{i = 1}^n P(c_i \, | \, d_i  ; \btheta) \\
+  \Leftrightarrow& \min_{\btheta} \sum_{i=1}^n - \log P(c_i \, | \, d_i; \btheta)
+\end{align*}
+A stochastic gradient of the negative Log Likelihood becomes:
+\[
+  \frac{\partial}{\partial \btheta} - \log P(c \, | \, d ; \btheta) = \frac{-c \cdot \textbf x_d}{1 + \exp(c \cdot \btheta^{\top} \textbf x_d)}
+\]
+\textcolor{red}{Nice:} We get probabilistic interpretation
 
 \subsubsection{SVM}
+SVM is the method of choice based on various experimental studies. Can use kernels instead of inner product and hence work efficiently in high dimensions. \textcolor{red}{Minus:} no probabilistic interpretation!\\
+\textbf{SVM minimizes the Hinge loss:}
+\[
+  \btheta^{\star} = \underset{\btheta}{\text{argmin}} \frac{\lambda}{2} ||\btheta||^2 + \frac{1}{n} \sum_{i = 1}^n \max\{0, 1 - y_i \btheta^{\top} \textbf x_i\} \hspace{0.4cm} \text{where } y_i \in \{-1, 1\}
+\]
+\textbf{SVM stochastic sub-gradient update:}
+\[
+  \btheta_{t+1} = 
+                \begin{cases} 
+                      \btheta_t - \eta_t \lambda \btheta_t & \text{if } y_i \btheta^{\top} \textbf x_i \geq 1\\ 
+                      \btheta_t - \eta_t (\lambda \btheta_t - y_i \textbf x_i) & \text{otherwise}
+                 \end{cases}
+\]
 
-%%%%%%%%%%%%%%%%%%%%% Non-Negative MF %%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%% Learning to Rank %%%%%%%%%%%%%%%%%%%%%%%%%%
+\msection{7 - Learning to Rank}
+\paragraph{Pointwise relevance data:} We want to assess the relevance/rank for each individual document. That is, for a given document we want predict its relevance (e.g. may have 5 relevance classes). Use e.g. Ordinal Regression: doc\_1 $\Rightarrow$ r\_2
 
-\msection{Non-Negative MF}
-Given Document-term matrix $\mathbf X\in \R_+^{D\times N}$. We want a NMF for which holds:\\
-\vspace{-0.1cm}\hspace{2.5cm}
-$\mathbf X \approx \mathbf{UZ} \ \ \text{with}\ \  \mathbf U\in \R_+^{D \times K}\ \text{and}\ \mathbf Z\in \R_+^{K\times N}$
-\subsection{Probabilistic LSI}
-\textbf{Generate tuple $(document, word)$:}
-\begin{enumerate}[leftmargin=0.5cm]
-  \itemsep0em 
-  \item Sample document according to $P(document)$
-  \item Sample word according to $P(word|document)$
-\end{enumerate}
-Assume a factorization: \hspace{-0.2cm}
-$P(word|doc) \hspace{-0.1cm} = \hspace{-0.2cm} \sum\limits_{\text{topic}} \hspace{-0.1cm} P(word|topic)P(topic|doc)$\\
-Therefore: \hspace{1.6cm}$P(word, doc) \hspace{-0.05cm} = \hspace{-0.1cm} \sum\limits_{\text{topic}} \hspace{-0.1cm}  P(word|topic)P(topic, doc)$\\
-Rewrite: \hspace{1.8cm}$P(d\text{th } word,\ n\text{th } document) = x_{dn} = (\mathbf{UZ})_{dn}$\\
-  
-\subsection{Quadratic NMF}
-Consider non-negative \textbf{X} and quadratic cost fnc. (like in K-Means):\\
-\hspace{1cm}$\min\limits_{\mathbf U,\ \mathbf Z} J(\mathbf U, \mathbf Z) = {1\over 2} || \mathbf X- \mathbf U \mathbf Z||_F^2\qquad \text{s.t.} \quad u_{dk},\ z_{kn} \in \R_0^+$\\
-% with the Kullback-Leibler Divergence:
-% \begin{align*}
-% \min_{\mathbf U, \mathbf Z} = \sum_{d=1}^D \sum_{n=1}^N x_{dn} \log\left({x_{dn} \over (\mathbf U \mathbf Z)_{dn}}\right)\\
-%  \sum_{d=1}^D u_{dk} = 1 \forall k \qquad \sum_{k,n} z_{kn} = 1.
-% \end{align*}
-\textbf{Algorithm:}
-\begin{enumerate}[leftmargin=0.5cm]
-  \itemsep0em 
-  \item Init $\mathbf U,\ \mathbf Z$ with pos. random values
-  \item loop:\\
-  \emph{Update factors} \textbf{U}: $u_{dk} = u_{dk}{ (\mathbf X \mathbf Z^\top)_{dk} \over (\mathbf U \mathbf Z \mathbf Z^\top)_{dk}}$\\
-  \emph{Update coefficients} \textbf{Z}: $z_{kn} = z_{kn} {(\mathbf U^\top \mathbf X)_{kn} \over (\mathbf U^\top \mathbf U \mathbf Z)_{kn}}$
- %&\qquad \text{Update factors } \mathbf U: \ u_{dk} = u_{dk}{ (\mathbf X \mathbf Z^T)_{dk} \over (\mathbf U \mathbf Z \mathbf Z^T)_{dk}}\\
- %&\qquad \text{Update coefficients} \mathbf Z:\ z_{kn} = z_{kn} {(\mathbf U^T \mathbf X)_{kn} \over (\mathbf U^T\mathbf U \mathbf Z)_{kn}}
-\end{enumerate}
-This leads to $\mathbf X \approx \mathbf{UZ}$ when $K<N$\\
-\vspace{0.1cm}
-\textbf{Derivation:}\\
-Lagrangian: $L(\mathbf{U}, \mathbf{Z}, \boldsymbol{\alpha}, \boldsymbol{\beta})= J(\mathbf{U}, \mathbf{Z})-tr(\boldsymbol \alpha \mathbf{U}^\top) - tr(\boldsymbol \beta \mathbf{Z}^\top)$\\
-$J(\mathbf U, \mathbf Z) = {1\over 2} || \mathbf X- \mathbf U \mathbf Z||_F^2 = \frac{1}{2} tr\left( (X-UZ)(X-UZ)^T \right)$\\
-\hspace{3.3cm}$= \frac{1}{2} (\text{tr}(\mathbf{X} \mathbf{X}^\top) \hspace{-0.05cm} - \hspace{-0.05cm} 2\text{tr}(\mathbf{X} \mathbf{U}^\top \mathbf{Z}^\top) \hspace{-0.05cm} + \hspace{-0.05cm} \text{tr}(\mathbf{U} \mathbf{Z} \mathbf{Z}^\top \mathbf{U}^\top))$\\
-Taking derivatives and setting to 0 leads to above update rules:
-$\frac{\partial J}{\partial \mathbf{U}} = \mathbf{U} \mathbf{Z} \mathbf{Z}^\top - \mathbf{X} \mathbf{Z}^\top \overset{!}{=} 0$ 
-and 
-$\frac{\partial J}{\partial \mathbf{Z}} = \mathbf{U}^\top \mathbf{U} \mathbf{Z} - \mathbf{U}^\top \mathbf{X} \overset{!}{=} 0$
+\paragraph{Pairwise preference data:} We just want to assess the relative ranking between pairs of documents. That is, for a document pair (doc\_i, doc\_j) we want to say e.g. doc\_i is more relevant than doc\_j. Use classification methods with input h(x$_i$ - x$_j$).
 
+\paragraph{List data:} We want to predict the entire ranked list of all documents. That is, given all documents as input, we want to predict a complete ranking list. \\
+E.g. 
+\begin{tabular}{l|c}
+\hline
+r\_1  &  doc\_3  \\
+r\_2 &  doc\_1   \\
+r\_3 & doc\_2 \\
+\end{tabular}
+
+\paragraph{Ordinal Regression:} We don't need exact numeric relevance values, just the relevance order matters (e.g. -2, -1, 0, 1, 2)!
+
+%%%%%%%%%%%%%%%%%%%%% Learning to Rank %%%%%%%%%%%%%%%%%%%%%%%%%%
 \msection{Sparse Coding}
 Given signal $f = \mathbf{x}$ and orthonormal basis $\mathbf{U} = [ \mathbf{u}_1, \ldots, \mathbf{u}_K]$:\\
 \textbf{Full reconstruction:} 
