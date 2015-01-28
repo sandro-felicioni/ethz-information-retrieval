@@ -800,7 +800,46 @@ For each page we compute a hub score $h(d)$ and an authority score $a(d)$.
   \item Both can be reduced to eigenvalue problem
   \item Conceptually both very similar
 \end{itemize}
-\vfill
+
+\msection{11 - Recommender Systems}
+\paragraph{Recommender System:} Designed to automatically recommend items (e.g. products, songs, videos) to users in a personalized way. Recommendations typically happen in a query-free setting based on a long-term or short-term/session profile.
+
+\paragraph{Long-term vs short-term profile:} 
+\begin{itemize}[leftmargin=0.25cm]
+  \item \underline{Long-term interest:} Captures persistent interest\\
+        E.g. complete customer history (e.g. Netflix account)
+  \item \underline{Short-term interest:} Captures specific task\\
+        E.g. session context (amazon: people who viewed X also viewed Y)
+\end{itemize}
+
+\paragraph{User data:} Can obtain user data via explicit or implicit feedback:
+\begin{itemize}
+  \item \underline{Explicit feedback:} user ratings, user reviews, questionnaires
+  \item \underline{Implicit feedback:} page visits, purchase history, download logs
+\end{itemize}
+
+\paragraph{Content-based filtering:} Uses similarity between items to make predictions. E.g. Recommend movies with same genre or same actor. Youtube for instance.
+
+\paragraph{Collaborative filtering:} Uses similarity between users or ratings from oneself and from other users to make predictions.\\
+E.g. Recommend a high rated movie from John, if John is similar in age/sex/interest as you. Netflix for instance.
+\begin{itemize}
+  \item[+] Support for items that content is not easily analyzed:\\
+  E.g. For music it's hard to analyze based on content only, since genre/artist of album is same, but songs vary in content/style.
+  \item[+] Filter items based on quality \& taste (not just based on content):\\
+  E.g. Take also ratings from others into account. Just because its featuring same actors it doesn't mean it's a good movie!
+\end{itemize}
+
+\msection{12 - Entity Linking and Semantic Search}
+\paragraph{Entities:} An entity represents something with a name (e.g. person, location, organization). In general an entity possess:
+\begin{itemize}
+  \item One or more IDs (e.g. Freebase ID)
+  \item One or more names (e.g. FB, Facebook, Facebook in Chinese)
+  \item type(s) (e.g. person, location, organization)
+  \item attributes and description (e.g. age)
+  \item relationships to other entities
+\end{itemize}
+
+\paragraph{Entity Linking:} 
 \end{multicols}%}
 
 \end{document}
