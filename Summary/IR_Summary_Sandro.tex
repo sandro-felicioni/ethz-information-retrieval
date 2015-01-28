@@ -57,6 +57,11 @@
 % for rotating table
 \usepackage{rotating}
 
+%for pseudocode. See http://mirrors.ibiblio.org/CTAN/macros/latex/contrib/algorithm2e/doc/algorithm2e.pdf
+\usepackage[]{algorithm2e}
+
+% removes number in title of algorithm
+%\renewcommand{\thealgocf}{}
 
 \usepackage{setspace}
 \renewcommand{\baselinestretch}{1}  %0.2 still ok!
@@ -695,59 +700,107 @@ Here $n$ = \# tokens in collection and for $\beta = 0.5$: m$(n) \in O(\sqrt{n})$
 
 \paragraph{Group Varint Encoding:} Golomb Codes or Block-Based Index Formats have good compression, but are expensive to decode. Group Varint Encoding is more efficient! The idea is to put $4 \times 2$ bit lengths together in 1 Byte! Now encoding is limited to 32 bits. The 2 bits encode how many bytes (1-4) have to be read!
 
-\msection{Convex Optimization}
-\textbf{Primal problem:} 
-$ \min_{\textbf{x}} f(\mathbf{x}) \quad \text{subject to} \quad g_i(\mathbf{x}) \leq 0, i = 1, \ldots, m$\\
-\hspace{6.6cm} $h_i(\mathbf{x}) = 0, i = 1, \ldots, p$\\
-\textbf{Lagrangian:} 
-$L(\mathbf{x}, \lambda, \nu) \hspace{-0.05cm} = \hspace{-0.05cm} f(\mathbf{x}) + \hspace{-0.1cm} \sum\limits_{i=1}^m \lambda_i g_i(\mathbf{x}) + \hspace{-0.1cm} \sum\limits_{i=1}^p \nu_i h_i(\mathbf{x})$ where $\lambda \hspace{-0.05cm} \geq \hspace{-0.05cm} 0$\\
-\textbf{Dual function:}
-$d(\lambda, \nu) = \inf\limits_\textbf{x} L(\mathbf{x}, \lambda, \nu)$\\
-\textbf{Dual problem:}
-$\max\limits_{\lambda, \nu} \; d(\lambda, \nu) \quad \text{subject to} \quad \lambda \geq 0$\\
-\textbf{Recover optimal \textbf{x}}: $\textbf{x}^\star = \argmin_\mathbf{x} L(\textbf{x}, \lambda^\star, \nu^\star)$
+\msection{10 - Link Analysis}
+The general idea is to exploit the link structure on the web to assess quality/relevance of a website (= doc) \underline{independent of a query}!\\
+\textbf{Assumptions:}
+\begin{enumerate}
+  \item Hyperlink is a quality signal (endorsement)
+  \item Anchor text describes target page
+\end{enumerate}
 
-\textbf{Note:} Dual function is a lower bound on optimal value $p^\star$ of primal!\\
-\emph{Proof:} $d(\lambda, \nu) = \inf\limits_{\mathbf{x}} L(\mathbf{x}, \lambda, \nu) \leq  
-\inf\limits_{\tilde{\mathbf{x}}} L(\tilde{\mathbf{x}}, \lambda, \nu) \leq
-\min\limits_{\tilde{\mathbf{x}}} f(\mathbf{\tilde{x}}) = p^\star$
+\paragraph{Anchor Bombs:} When you create many links to the target page then the target page gets high relevance! This can be abused to e.g. associate a desired text (put in anchor text) with the target page. E.g. ``miserable failure'' $\Rightarrow$ white house.
 
+\paragraph{Web as Graph:} The idea is to represent the web as a directed graph, where pages are nodes and edges are hyperlinks! Therefore in-coming edges are treated as endorsement. 
 
-\subsection{Convex optimization with equality constraints}
-\textbf{Primal problem:} $\min_{x} f(x) \quad \text{subject to} \quad Ax = b$\\
-\textbf{Lagrangian:} $L(\mathbf{x}, \nu) = f(x) + \nu^\top(A x - b)$\\
-\textbf{Dual function:} $d(\nu) = \inf_x L(x, \nu)$\\
-\textbf{Dual problem:} $\max\limits_{\nu} \; d(\nu)$\\
+\subsection{Citation Analysis} 
+The problem of identifying relevant pages is similar as identifying relevant/good articles in the scientific literature. Here a node is simply an article and an edge is a citation. I.e. When article A cites article B we have: A $\rightarrow$ B (A endorses B)
 
-\underline{\textbf{Gradient Method for dual:}}\\
-\hspace{0.2cm}$x^{k+1} = \argmin_x L(x, \nu^k)$ \\
-\hspace{0.2cm}$\nu^{k+1} \hspace{-0.05cm} = \hspace{-0.05cm} \nu^{k} \hspace{-0.05cm} + \hspace{-0.05cm} \alpha^k \nabla d(\nu^k) \hspace{-0.05cm} = \hspace{-0.05cm} \nu^{k} \hspace{-0.05cm} + \hspace{-0.05cm} \alpha^k \frac{\partial}{\partial \nu} L(x^{k+1}, \nu^{k}) \hspace{-0.05cm} = \hspace{-0.05cm} \nu^{k} \hspace{-0.05cm} + \hspace{-0.05cm} \alpha^k (A x^{k+1} - b)$\\
+\paragraph{Co-citation similarity:} Can be used to identify similar articles. Co-citation for articles A and B is defined as the number of other articles that cite both A and B.\\
+I.e. It's the overlap of other articles citing them.\\ 
 
-\underline{\textbf{Dual decomposition:}} If $f(x)$ with $x \in \R^n$ is separable than $L(x, \nu)$ is separable and we can split the x-min step:
-\\
-$f(x) = f_1(x_1) + ... + f_n(x_n) \Rightarrow L(x, \nu) = L_1(x_1, \nu) + ... + L_n(x_n, \nu) - \nu^\top b$\\
-\hspace{0.2cm}$x_i^{k+1} = \argmin_{x_i} L_i(x_i, \nu^k) = \argmin_{x_i} f_i(x_i) + \nu^\top A_i x_i \quad i=1..n$ \\
-\hspace{0.2cm}$\nu^{k+1} = \nu^{k} + \alpha^k \nabla d(\nu^k) = \nu^{k} + \alpha^k (\sum_{i=1}^n A_i x_i^{k+1} - b)$
+\paragraph{Citation frequency:} Can be used to measure publication impact. The idea is that each cite casts a vote of 1 hence $\text{\# votes = impact rank}$! \\
+\textcolor{red}{Note:} This is not very accurate! Can create citation groups!\\
 
-\underline{\textbf{Method of Multipliers:}} Augment Lagrangian to $L_\rho$ with ${\rho \over 2} ||\cdot||_2^2$\\
-$L_\rho (x,\nu) = f(x) + \nu^T (Ax-b) + {\rho \over 2} ||Ax-b||_2^2$\\
-\hspace{0.2cm}$x^{k+1} = \argmin_x L_\rho (x,\nu^k)$\\
-\hspace{0.2cm}$\nu^{k+1} = \nu^k + \rho \nabla d(\nu^k) = \nu^k + \rho (Ax^{k+1}-b)$\\
+\paragraph{Weighted citation frequency:} Like ``Citation frequency'' but an article's vote is weighted according to its own citation impact!
 
-Choose $\rho$ as step size, since $x^{k+1}$ minimizes $L_\rho(x, \nu^k)$:
-\[
- 0 =\nabla_x L\rho(x^{k+1}, \nu^k) = \nabla_x f(x^{k+1}) + \underbrace{A^T (\nu^k +\rho(Ax^{k+1}-b))}_{A^T \nu^{k+1}}
-\]
+\subsection{PageRank}
+\paragraph{Simplest Idea:} Use \# in-links of a page as a quality score. This is equivalent as the ``Citation frequency''.\\
+\textcolor{red}{Issues:} Same as in citation analysis: Easy to spam with Link-farms!
 
-\underline{\textbf{Alternating Direction Method of Multipliers:}}\\
-Since aug. Lag. $L_\rho$ not separable anymore, can't parallelize x-min!\\
-Primal: $\min_{x, z} f(x) + p(z)\ \text{ subject to }\ Ax+Bz = c \quad f,p \text{ convex}$\\
-$L(x, z, \nu) = f(x) + p(z)+ \nu^T (Ax+Bz-c)$\\
-$L_\rho(x, z, \nu) = f(x) + p(z)+ \nu^T (Ax+Bz-c) + {\rho \over 2}||Ax + Bz- c||_2^2$\\
-\hspace{0.2cm}$x^{k+1} = \argmin_x L_\rho (x, z^k, \nu^k)$\\
-\hspace{0.2cm}$z^{k+1} = \argmin_z L_\rho(x^{k+1}, z, \nu^k)$\\
-\hspace{0.2cm}$\nu^{k+1} = \nu^k + \rho \nabla d(\nu^k) = \nu^k + \rho(Ax^{k+1}+Bz^{k+1}-c)$\\
-Primal Feasibility condition: $Ax^\star + Bz^\star - c = 0$\\
-Dual Feasibiliy conditions:$\nabla f(x^\star) \hspace{-0.05cm} + \hspace{-0.05cm} A^\top \nu^\star \hspace{-0.05cm} = \hspace{-0.05cm} 0$ and $\nabla p(z^\star) \hspace{-0.05cm} + \hspace{-0.05cm} B^\top \nu^\star \hspace{-0.05cm} = \hspace{-0.05cm} 0$
+\paragraph{Random Web Surfer:} The idea is to simulate a random web surfer, which navigates along the graph and up and then also randomly jumps to an arbitrary node. We can thus estimate how likely it is that a user finds himself on a specific node. This can then directly be used as a measure for importance/relevance of that node.\\
+\textcolor{red}{Issues:} Web Surfer is inefficient! Need many samples (steps) to be accurate! Use faster Power Method instead!
+
+\begin{addmargin}[0.28cm]{0cm} % left, right
+  \underline{Algorithm:}\\
+  \begin{algorithm}[H]
+   $X_0$ = start at random page\\
+   \For{$t = 1, 2, ...$}{
+    \eIf{out-degree($X_{t-1}$) = 0}{
+     $X_t$ = page selected at random
+     }{
+     with prob. $p$: $X_t$ = randomly sampled page from out-links\\
+     with prob. $(1-p)$: $X_t$ = page selected at random\\
+    }
+   }
+  \end{algorithm}  
+\end{addmargin}
+
+\paragraph{Power Method:} Instead of simulating the markov chain 1 step at the time, simulate all one-step transitions simultaneously! \\
+You can show that by iterative matrix multiplication $s^{(t)} = s^{(0)}T^t$ the resulting $s^{(t)}$ converges to the stationary distribution $\pi$ which then is equivalent as directly solving the eigenvalue problem of $T$!
+
+\subsection{Hubs and Authorities (HITS)}
+HITS defines 2 different types of relevance on the web:
+\begin{itemize}
+  \item \underline{Type 1 - Hub:} Good list of links to pages for information need!\\
+        \textcolor{red}{Intuition:} Good hub page for a topic if it points to many authority pages for that topic.\\
+        E.g. Bob's list of recommended hotels in London\\
+  \item \underline{Type 2 - Authority:} Direct answer to the information need!\\
+        \textcolor{red}{Intuition:} Good authority page for a topic if it is pointed to by many hub pages for that topic.\\
+        E.g. Homepage of ``Four Seasons Hotel London''
+\end{itemize}
+
+\columnbreak
+
+\paragraph{Topic-Focused Base Sets:}
+\begin{itemize}
+  \item Identify a subset of pages related to a topic as follows:
+  \begin{itemize}
+    \item Do a regular web search first (with query Q)
+    \item Top $n$ pages = \underline{root set}
+    \item Find all pages that are linked to or link to root set = \underline{base set}
+  \end{itemize}
+  \item Compute hub and authority scores for this web subgraph
+\end{itemize}
+\begin{center}
+  \includegraphics[width=0.5\columnwidth]{hits.png}
+\end{center}
+
+\paragraph{Score computation:}
+For each page we compute a hub score $h(d)$ and an authority score $a(d)$.
+\begin{itemize}
+  \item Initialize: $\forall d: h(d) = 1$ and $a(d) = 1$
+  \item Iteratively update all $h(d)$ and $a(d)$:\\
+  \begin{itemize}
+    \item[] $h(d) = \sum\limits_{d \rightarrow y} a(y)$ \hspace{0.7cm}where page $d$ links to $y$
+    \item[] $a(d) = \sum\limits_{x \rightarrow d} h(x)$ \hspace{0.7cm}where page $x$ links to $d$
+  \end{itemize}
+  \item After convergence:\\
+  \begin{itemize}
+    \item[--] Output pages with highest $h$ scores as top hubs
+    \item[--] Output pages with highest $a$ scores as top authorities
+  \end{itemize}
+\end{itemize}
+\textcolor{red}{Note:} We can write the iterative update steps also in vector/matrix notation and hence compute these scores more efficiently! You can further also apply the power method to compute the HITS scores!
+\paragraph{PageRank vs HITS}
+\begin{itemize}
+  \item PageRank can be precomputed, HITS must compute at runtime
+  \item PageRank big impact in practice, HITS big impact in research
+  \item PageRank applied to whole web, HITS applied to small base set
+  \item PageRank not topic/query dependent results, HITS topic/query dependent results
+  \item Both can be reduced to eigenvalue problem
+  \item Conceptually both very similar
+\end{itemize}
+\vfill
 \end{multicols}%}
+
 \end{document}
