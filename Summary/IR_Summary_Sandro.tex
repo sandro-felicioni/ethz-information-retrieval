@@ -51,6 +51,13 @@
 
 \usepackage[letterspace=-4]{microtype}
 
+% for indent
+\usepackage{scrextend}
+
+% for rotating table
+\usepackage{rotating}
+
+
 \usepackage{setspace}
 \renewcommand{\baselinestretch}{1}  %0.2 still ok!
 
@@ -388,92 +395,306 @@ r\_2 &  doc\_1   \\
 r\_3 & doc\_2 \\
 \end{tabular}
 
-\paragraph{Ordinal Regression:} We don't need exact numeric relevance values, just the relevance order matters (e.g. -2, -1, 0, 1, 2)!
+\subsection{Ordinal Regression for Pointwise Ranking} We don't need exact numeric relevance values, just the relevance order matters (e.g. -2, -1, 0, 1, 2)! The geometric idea is to find a line, which can be divided into several non-overlapping intervals so that the projection of a datapoint onto this line results in the desired interval. The thresholds are monotonically increasing:
+\begin{align*}
+  - \infty = \sigma_0 < \sigma_1 \leq \sigma_2 \leq ... \sigma_{R-1} < \sigma_R = \infty
+\end{align*}
 
-%%%%%%%%%%%%%%%%%%%%% Learning to Rank %%%%%%%%%%%%%%%%%%%%%%%%%%
-\msection{Sparse Coding}
-Given signal $f = \mathbf{x}$ and orthonormal basis $\mathbf{U} = [ \mathbf{u}_1, \ldots, \mathbf{u}_K]$:\\
-\textbf{Full reconstruction:} 
-$f = \sum \limits_{k=1}^K \langle f, u_k\rangle u_k = \sum\limits_{k=1}^K z_k u_k$\\
-\textbf{Approx. (compression):} \hspace{-0.05cm}$\hat{f} \hspace{-0.05cm} = \hspace{-0.2cm}\sum \limits_{k\in \sigma} \hspace{-0.1cm} z_k u_k$ where $\sigma$ is a subset of size $\tilde K$\\
-\textbf{Reconstruction error:} $||f-\hat f||_2^2 = \langle f - \hat f, f - \hat f \rangle = \ldots = \sum \limits_{k \notin \sigma} z_k^2$\\
-\textbf{Fourier basis:}Global support:+for sine-like sig,-for localized sig.\\
-\textbf{Wavelet basis:}Local support:+for localizd sig,-for nonvanishing sig\\
-\vspace{0.1cm}
+\paragraph{Ordinal Regression with Margins:} To be more robust we add margins to both ends of each interval. I.e. we want $\btheta^{\top} \mathbf{x}_i$ to be greater then left threshold and smaller than right threshold up to a margin of 1:
+\begin{align*}
+  \btheta^{\top} \mathbf{x}_i - \sigma_{y -1} \geq& 1  \hspace{0.5cm} \text{(left margin)} \\
+  \sigma_{y} - \btheta^{\top} \mathbf{x}_i \geq& 1  \hspace{0.5cm} \text{(right margin)}
+\end{align*}
+We then minimize the Margin loss (generalized Hinge loss):
+\begin{align*}
+  \underset{\btheta}{\text{arg min}} \; \frac{\lambda}{2}||\btheta||^2 + \frac{1}{n} \sum_{i = 1}^n \max\{0, 1 + \sigma_{y -1} - \btheta^{\top} \mathbf{x}, 1 - \sigma_y + \btheta^{\top} \mathbf{x}\}
+\end{align*}
+\begin{center}
+  \includegraphics[width=0.8\columnwidth]{ordinal_regression.png}
+\end{center}
 
-\subsection{Compressive Sensing}
-Assume $\mathbf{x} \in \R^{D \times 1}$ is sparse in some orthonormal basis $\textbf{U} \in \R^{D \times D}$ with $K$ large coefficients in $\mathbf{z} \in \R^{D \times 1}$: $\mathbf x = \mathbf{U} \mathbf z$\\
-\textbf{Idea:} Instead of saving $\mathbf{x}$ we save $\mathbf{y}$ with dimension $M << D$\\
-\emph{Store $\mathbf{y}$:} \hspace{0.61cm}$ \mathbf y = \mathbf W \mathbf x = \mathbf W \mathbf U \mathbf z = \mathbf \Theta \mathbf z \quad$ with $\quad \mathbf \Theta = \mathbf W \mathbf U \ \in \R^{M\times D}$\\
-
-\emph{Restore $\mathbf x$:} \hspace{0.03cm}
-$\mathbf{z}^\star = \argmin \limits_{\mathbf{z}} ||\mathbf{z}||_0 \qquad \text{s.t.}\ \mathbf \Theta \mathbf z = \mathbf y$ \hspace{0.5cm}(use MP)\\
-\hspace{1.8cm} $\mathbf{x} = \mathbf{U} \mathbf{z}^\star$
-
-\subsection{Overcomplete dictionaries}
-Assume \textbf{U} $\in \R^{D \times L}$ is overcomplete\\
-\textbf{Objective:} 
-$\mathbf{z}^* \in \argmin \limits_z ||\mathbf z||_0 \quad \text{s.t.}\quad \mathbf x = \mathbf U \mathbf z$ \hspace{0.3cm}(NP hard problem)
-
-\subsubsection{Coherence}
-Increasing the overcompleteness factor ${L \over D}$: Increases the sparsity of the coding, but also increases the linear dependency between atoms.
-
-\vspace{0.1cm}
-\textbf{coherence:} 
-$m(\mathbf U) = \max_{i, j: \; i \neq j} | \mathbf u_i^\top \mathbf u_j |$
-\begin{itemize}[leftmargin=0.5cm]
-  \itemsep0em 
-  \item $m(\mathbf B) = 0$ for an orthogonal basis $\mathbf B$
-  \item $m([\mathbf B \mathbf u]) \geq {1 \over \sqrt{D}}$ if atom $\mathbf u$ added to $\mathbf B$
+\subsection{Hinge Loss for Pairwise Ranking}
+Applicable when we have only pairwise preferences, e.g. obtained through implicit user feedback:
+d is preferred over d$'$ for query q if:\\
+\begin{itemize}
+  \item d is clicked on, but d$'$ is not clicked on
+  \item d$'$ has been presented before d to the user
 \end{itemize}
 
-\subsubsection{Matching Pursuit (MP)}
-Greedy algo to approximate NP hard problem iteratively.\\
-\textbf{Objective:} $\textbf{z}^\star \in \argmin \limits_\textbf{z} || \mathbf{x} - \mathbf{U} \mathbf{z}||_2 \quad \text{s.t.} \quad ||z||_0 \leq K$\\
-\textbf{Algo:}
-At each iter., take a step in direction of the atom $\mathbf u_{d^\star}$ that minimizes at most the residual $||\mathbf x \text{-} \mathbf U \mathbf z||_2$ where $d^\star \hspace{-0.1cm} \in \hspace{-0.05cm} \argmax_d | \langle \mathbf{r}, \hspace{-0.05cm} \mathbf{u}_d \rangle|$\\
-\emph{Note:} minimizing $||\mathbf{r}||_2$ is equiv. as maxim. abs. correlation $| \langle \mathbf{r}, \mathbf{u}_d \rangle |$
-\begin{enumerate}[leftmargin=0.5cm]
-  \itemsep0em 
-  \item Start with zero vector $\mathbf z = \mathbf 0$ and residual $\mathbf r = \mathbf x$
-  \item While $|| \mathbf{z} ||_0 < K$:\\
-    \textbf{Criteria:} $d^\star = \argmax_d | \mathbf u_d^\top \mathbf r |$\\
-    \textbf{Update:} $z_{d^\star} = z_{d^\star} + \mathbf u_{d^\star}^\top \mathbf r$\\
-        \hspace{1.55cm} $\mathbf r = \mathbf r - (\mathbf u_{d^\star}^\top \mathbf r) \; \mathbf u_{d^\star}$
+\paragraph{Hinge Loss:}
+For preference $d \succ d'$ want $\btheta^{\top} \mathbf{x}_{d, q} > \btheta^{\top} \mathbf{x}_{d', q}$
+\begin{align*}
+  \underset{\btheta}{\text{arg min}} \; \frac{\lambda}{2}||\btheta||^2 + \frac{1}{n} \sum_{d \succ_q d'} \max\{0, 1 - \btheta^{\top}(\mathbf{x}_{d,q} - \mathbf{x}_{d', q}) \}
+\end{align*}
+
+\textcolor{red}{Properties:}
+\begin{itemize}
+  \item[+] Same problem structure as in binary classification
+  \item[--] Many training examples
+  \item[--] No focus on ordering at top
+\end{itemize}
+
+\subsection{List-Based Ranking}
+The idea is to directly maximize a precision-based criterion e.g. (mean) average precision.
+
+
+%%%%%%%%%%%%%%%%%%%%% Document Indexing %%%%%%%%%%%%%%%%%%%%%%%%%%
+\msection{8a - Document Indexing}
+\textbf{Index: } An index is an efficient look-up structure for retrieving and scoring documents in real-time. Essential part of any search engine!\\
+\textcolor{red}{Advantage:} invest in off-line computation $\Rightarrow$ lower response time, reduce query latency, gain speed-up in processing.
+
+\paragraph{Forward Index:} The processed form of the original document. The processed form can be a tokenized list of terms in the doucment.\\
+E.g. Map[doc\_id, List[String]]
+
+\paragraph{Inverted Index:} A data structure that allows to access all occurrences of a given term. E.g. Map[String, List[doc\_id]]
+
+\paragraph{Frequency Index:} Still an inverted index but also with counts. E.g. Map[String, List[(doc\_id, count)]]
+
+\paragraph{Positional Index:} Still an inverted index, but also with position. Often it is important to retain positional information of term occurences. The idea is to create a positional index to score documents higher, which contain the query terms as subsequent terms or in close proximity! \\
+E.g. Map[String, List[(doc\_id, position)]]\\
+\textcolor{red}{Note:} doc\_id not unique anymore per List!\\
+\textcolor{red}{Downside:} Quite expensive positional list intersection required
+
+\paragraph{Indexing Phrases:} Create an inverted index for frequent whole phrases (e.g. 2 or more terms) rather than for single terms! \\
+\textcolor{red}{Advantage:} Faster than multi-term indexing via ``Positional Index''\\
+\textcolor{red}{Downside:} Requires that we identify phrases at tokenization step!
+
+\paragraph{List Intersection:} A query consists of multiple terms. You often want to retrieve/evaluate only those documents, which contain all terms of a query. This can be achieved efficiently using Inverted Index (if each document list is sorted after doc\_id). For each term we get a document list and hence the task is reduced to List Intersection. \\
+\underline{Algorithm:} Iteratively advance pointer of lower doc\_id's until we have a match on all document lists. This allows to work with infinite large streams!
+
+\msection{8b - Index Construction and Serving}
+\paragraph{In-Memory Index Construction:} If everything fits in memory then the index can directly be constructed in memory on 1 machine.\\
+\textcolor{red}{Issue:} Lack of scalability (speed but also memory)
+
+\paragraph{Blocked Sort-Based Indexing (BSBI):} Create small blocks of postings (e.g. 1 posting = (term\_id, doc\_id, frequency))which fit in memory. Then sort each block (e.g. after term and then doc\_id) and write them to disk. Then merge all blocks into one long sorted order (e.g. external merge sort) and again write to disk. You can then create a dictionary by making one pass over the whole sequence.\\
+\underline{Dictionary Representation:}
+\begin{enumerate}
+  \item Represent token as strings $\Rightarrow$ significant memory blow-up
+  \item Maintain global dictionary (String $\Rightarrow$ int)
+  \item Token fingerprinting (hashing)
 \end{enumerate}
-Exact recovery when $K < {1 \over 2} \left( 1 + {1 \over m(\mathbf U)} \right)$ ($K$: \# non-zero elements)
+
+\paragraph{Single-Pass in Memory Indexing (SPIMI):} Don't use a global dictionary (as in BSBI), but partition document collection into sub-collections. Then create an \underline{independent} inverted index for each sub-collection. Then we have 2 options to get the functionality of a global index structure:
+\begin{enumerate}
+  \item Merge all independent indexes to 1 global index
+  \item Run query over all block indexes (merge results)
+\end{enumerate}
+
+\paragraph{Distributed Indexing (Map Reduce):} Can use MapReduce to compute global inverted index in a distributed manner.\\
+\begin{itemize}
+  \item \underline{Mapper:} Each mapper processes one document and generates tuples $<$token, (doc\_id, 1)$>$
+  \item \underline{Combiner:} It follows a Mapper and improves performance.\\
+        E.g. It can combine duplicate results into $<$token, (doc\_id, tf)$>$
+  \item \underline{Reducer:} Gets set of tuples belonging to same key (here token)\\
+        E.g. It creates and writes posting lists (token, List[(doc\_id, tf)])
+\end{itemize}
+
 \vfill
 \columnbreak
-\section{Dictionary Learning}
-Factorize training set $\mathbf X \in \R^{D\times N}$ into a dictionary $\mathbf U \in \R^{D\times L}$ and sparse matrix $\mathbf Z \in \R^{L\times N}$ such that:
-$(\mathbf U^*, \mathbf Z^*) \in \argmin \limits_{\mathbf U, \mathbf Z} ||\mathbf X - \mathbf U \mathbf Z||_F^2$ \\
 
-\textbf{Algorithm:} Iterative greedy minimization between 2 steps
-\begin{enumerate}[leftmargin=0.4cm]
-  \itemsep0em 
-  \item \textbf{Coding step}: Fix \textbf{U} and find sparsest possible \textbf{Z}\\
-  \emph{Objective:} $\mathbf Z^{t+1} \hspace{-0.1cm} \in \hspace{-0.05cm} \argmin \limits_{\mathbf Z} || \mathbf X - \mathbf U^t \mathbf Z||_F^2$, subject to $\mathbf Z$ being sparse\\ 
-  \hspace{1.1cm}$\Rightarrow \mathbf{z}_n^{t+1} \in \argmin \limits_{\mathbf{z}} ||\mathbf{z}||_0 \quad$ s.t. $\quad || \mathbf x_n - \mathbf U^t \mathbf z||_2 \leq \sigma ||\mathbf x_n||_2$
+%%%%%%%%%%%%%%%%%%%%% Index Serving & Compression %%%%%%%%%%%%%%%%%%%%%%%%%%
+\msection{9 - Index Serving \& Compression}
+\subsection{Index Serving}
+Once index is constructed, then there are still 2 key questions:
+\begin{itemize}
+  \item Where do we keep index data structure? Memory vs disk
+  \item How do we process queries and perform scoring?
+\end{itemize}
 
-  \item \textbf{Dictionary update step}: Fix \textbf{Z} and find best \textbf{U} \\
-  \emph{Objective:} $\mathbf U^{t+1} \hspace{-0.05cm} \in \hspace{-0.05cm} \argmin \limits_{\mathbf U} ||\mathbf X - \mathbf U \mathbf Z^{t+1}||_F^2$, subject to  $||\mathbf u_l||_2=\hspace{-0.05cm}1$ $\forall l$ \\
-  \emph{Approximation}:  update one atom $\mathbf{u}_l$ at a time for all $l = 1, ..,L$:
+We have 2 options on how to split up the index into pieces/shards:
+\begin{itemize}
+  \item \underline{Document sharding:} Each shard contains many short posting lists for a subset of documents.
+  \item \underline{Term sharding:} Each shard contains few posting lists for all documents.
+\end{itemize}
 
- \begin{enumerate}[leftmargin=0.5cm]
-  \itemsep0em 
-  \item Set $\tilde{\mathbf U} = [\mathbf u_1^t \ldots \mathbf u_l \ldots \mathbf u_L^t]$ (fix all atoms except $\mathbf u_l$).
-  \item Isolate $\mathbf R_l^t$, the residual that is due to atom $\mathbf u_l$:\\
-  $|| \mathbf X - \tilde{\mathbf U} \cdot \mathbf Z^{t+1} ||_F^2 
-     %= ||  \mathbf X - (\sum\limits_{e\neq l}\mathbf u_e^t(\mathbf z_e^{t+1})^\top + \mathbf u_l (\mathbf z_l^{t+1})^\top )||
-    = || \mathbf R_l^t - \mathbf u_l ( \mathbf z_l^{t+1})^\top||_F^2$\\
-    where $\mathbf R_l^t = X - \sum_{i \neq l} \mathbf{u}_i (\mathbf{z}_i^{t+1})^\top \quad$\\
-    Note: sum represents \textbf{U}\textbf{Z} ohne $\textbf{u}_l$
+\paragraph{Document sharding:} We split the posting lists by document ID ranges. Then each shard contains many (1 for every vocabulary term) short posting lists. I.e. for every (term, List[doc\_id]) keep only those doc\_id's which belong to the assigned subset of documents. 
+\begin{itemize}
+  \item[+] Each shard can process queries independently. I.e. Each shard can compute full scores for each document (not possible in term sharding)
+  \item[+] Easy to keep additional per-document information (e.g. tf)
+  \item[+] Small network traffic (send query / receive scores) 
+  \item[+] Scalable: more documents more shards
+  \item[--] Query has to be processed by all N shards
+  \item[--] O(K $\cdot$ N) disk seeds for K word query over N shards
+\end{itemize}
+\begin{center}
+  \includegraphics[width=0.9\columnwidth]{document-shard.png}
+\end{center}
 
-  \item Find $\mathbf u_l^\star$ that minimizes $\mathbf R_l^t$, subject to $||\mathbf u_l^\star||_2 = 1$ (use SVD):\\
-  $\mathbf R_l^t = \mathbf U \mathbf D \mathbf V^\top = \sum_i d_i \mathbf u_i \mathbf v_i^\top \quad \Rightarrow \mathbf{u}_l^\star = $ first column of U 
- \end{enumerate}
-\end{enumerate}
-\vspace{0.1cm}
+\paragraph{Term sharding:} We split the index by term ranges. Then each shard contains a few terms, but every term has the full posting lists. I.e. keep full doc\_id's for every (term, List[doc\_id]).
+\begin{itemize}
+  \item[+] K word query has to be processed by at most K shards
+  \item[+] O(K) disk seeds for K word query
+  \item[--] Much higher network traffic (need exchange intermediate results)
+  \item[--] Data about each term for each matching document must be collected in one place
+  \item[--] Harder to have per-document extra information
+\end{itemize}
+\begin{center}
+  \includegraphics[width=0.9\columnwidth]{term-shard.png}
+\end{center}
+
+\subsection{Real-time Scoring}
+Makes use of the inverted index.
+\paragraph{Distributed Scoring:} Retrieval and scoring is done by shard (in document-sharding). Then need to merge into global result list.
+
+\paragraph{User query:} The query that is issued by the user.
+\paragraph{Retrieval query:} The query that we effectively process. We don't want to retrieve documents that are known to have small scores. There are various heuristics that can be used.
+
+\paragraph{Disjunctive retrieval:} Query each term independently and take union of results. This is very conservative and we may retrieve too many documents.
+
+\paragraph{Priority Ordered Posting Lists:} Often we can't scan complete posting lists (because too many documents in it). Hence could order the posting lists (the document\_id's) by their quality (eg PageRank) and then for a query process just the say 1000 first high quality documents. \\
+\textcolor{red}{Advantage:} Speed-up, high quality documents are surely considered
+
+\subsection{Dictionary Representation}
+\paragraph{Heap's Law:} Estimates the vocabulary (= dictionary) size as a function of the total number of terms in a collection.
+\begin{align*}
+  \text{Dictionary size: } \text m(n) &= kn^{\beta} \\
+  \text{where typically: } \beta &= 0.5 \hspace{0.3cm} \text{and} \hspace{0.3cm}30 \leq k \leq 100
+\end{align*}
+Here $n$ = \# tokens in collection and for $\beta = 0.5$: m$(n) \in O(\sqrt{n})$\\
+\underline{Empirical law:} it behaves linear in log-log space
+
+\textcolor{red}{\textbf{Q:}} Why dictionary (Map[term, $\cdot$]) compression? \\
+\textcolor{red}{\textbf{A:}} Want to keep it in memory and also to speed-up startup time.
+
+\paragraph{Fixed-width Array Dictionaries:} Simplest possible dictionary structure. Just keep uncompressed strings with all fixed width fields.
+\begin{itemize}
+  \item[+] Very easy to implement / work with
+  \item[--] waste of space for strings with $<$ 20 characters
+  \item[--] can't represent strings with $>$ 20 characters
+\end{itemize}
+\begin{center}
+  \includegraphics[width=0.6\columnwidth]{dictionary-fixed-width.png}
+\end{center}
+
+\paragraph{String Representation for Dictionaries:} Represent dictionary as 1 long String (where all terms are concatenated). Then in the dictionary just store offset to term in the long String. 
+\begin{itemize}
+  \item[+] Can store arbitrary long Strings (i.e. also $>$ 20 Bytes) 
+  \item[+] Saves around 30\% space
+  \item[--] Looking up a term is now more complex! (no direct term $\Rightarrow$ posting list pointer)
+\end{itemize}
+\vspace{-0.5cm}
+\begin{center}
+  \includegraphics[width=0.7\columnwidth]{dictionary-string-representation.png}
+\end{center}
+
+\paragraph{Dictionary Strings with Blocks and Front Coding:} Split the 1 long String into blocks, so that each block contains k terms. Then just maintain pointers to beginning of each block instead of having pointers for each term! Moreover use Front Coding, which replaces common prefix/suffix in a block with special symbols to save space (since many terms have same prefix in lexicographically ordered dictionary e.g. automat /a /ation /ic).
+\begin{itemize}
+  \item[+] Saves even more space
+  \item[--] Tradeoff: compression (larger blocks) vs faster access (smaller blocks)
+\end{itemize}
+
+\paragraph{Dictionary via Hash Tables:} Use hash func. to map term to id
+\begin{itemize}
+  \item[+] Simple and fast
+  \item[+] No need to store the Strings (terms)
+  \item[+] Most space efficient version
+  \item[--] Have to deal with collisions! Either maintain collision list (needs Strings) or use more bytes and live with small collision probabilities!
+\end{itemize}
+\begin{center}
+  \includegraphics[width=0.7\columnwidth]{dictionary-hash.png}
+\end{center}
+
+\subsection{Index Compression}
+\paragraph{Zip's Law:} Says that the \underline{collection frequency} of the $i$-th word cf$_i$ is proportional to $1/i$. Note w$_i$ corresponds to the $i$-th most frequent word in the collection.
+\begin{align*}
+  \text{collection frequency: } \text{cf}_i \propto \frac{1}{i} \Leftrightarrow \log \text{cf}_i = - \log i + \text{const}
+\end{align*}
+\textcolor{red}{Important is only:} Few frequent terms and many rare terms!
+
+\paragraph{Gap Encoding:} Tries to compress the document ID's in posting lists. The idea is to \underline{encode the gap} between doc\_id's instead of the doc\_id itself, since the gap is often smaller and thus saves space!
+
+\paragraph{Variable Length Encoding:} We want to spend fewer bits for small numbers (for gaps), since they occur more often! This requires a variable length encoding. \\
+\begin{addmargin}[0.28cm]{0cm} % left, right
+  \underline{Variable Byte Code:} Number of bits: always multiple of 8 (1 Byte)
+  \begin{itemize}
+    \item Use 7 bits to encode number
+    \item Use 1 bit as continuation bit (1 = stop, 0 = continue)
+  \end{itemize}
+  \textcolor{red}{Advantages:} Extremely simple \& efficient to implement\\
+  \textcolor{red}{Limitation:} Code length always multiple of 8 bits\\
+  \textcolor{red}{Note:} For numbers $\geq$ 128 need at least 2 Bytes!\\
+  \underline{Examples:}
+  \begin{align*}
+    3   &\Rightarrow& \hspace{-2cm} \textcolor{red}{1}0000011& \\
+    127 &\Rightarrow& \hspace{-2cm} \textcolor{red}{1}1111111& \\
+    130 &\Rightarrow& \hspace{-2cm} \textcolor{red}{0}0000001 \hspace{0.1cm} \textcolor{red}{1}0000010& 
+  \end{align*}
+\end{addmargin}
+\begin{tabular}{l|r|r|r|r|r|r|r|r|r|r|r}
+  \text{Bit} & 11 & 10 & 9 & 8 & 7 & 6 & 5 & 4 & 3 & 2 & 1 \\
+  \hline    
+  \text{Bin} & $2^{10}$ & $2^9$ & $2^8$ & $2^7$ & $2^6$ & $2^5$ & $2^4$ & $2^3$ & $2^2$ & $2^1$ & $2^0$ \\
+  \hline
+  \text{Num} & 1024 & 512 & 256 & 128 & 64 & 32 & 16 & 8 & 4 & 2 & 1
+\end{tabular} 
+
+\paragraph{Gamma Code:} Also wants to spend fewer bits for small numbers, but uses bit level control over codeword length (unlike VB Code where it was on byte level). Gamma codes are prefix codes!\\
+\textcolor{red}{Note:} VB Code is preferred in general!
+\begin{itemize}
+  \item[+] Higher compression then VB Code
+  \item[--] Machines typically have 8, 16, 32 word boundaries
+  \item[--] VB Code alignment potentially more efficient (always 8 bit)
+  \item[--] VB Code conceptually simpler with just little space overhead
+\end{itemize}
+\vspace{0.2cm}
+\begin{addmargin}[0.28cm]{0cm} % left, right
+  \underline{Gamma Code:} Encode number n as bit strings: length and offset
+  \begin{itemize}
+    \item offset = binary representation of n with leading 1 removed
+    \item length = unary code for number of bits in offset with tailing 0
+    \item concatenate: length + offset
+  \end{itemize}
+  \underline{Encode ex.:}\\
+  \vspace{-0.3cm}
+  \begin{flushright}
+    \begin{tabular}{r|r|r|r|r}
+      num & bin & offset & length & $\gamma$-code \\
+      \hline
+      0 & 0 & - & - & - \\
+      1 & 1 & - & 0 & 0, \\
+      2 & 10 & 0 & 10 & 10,0\\
+      42 & 101010 & 01010 & 111110 & 111110,01010\\
+    \end{tabular}
+  \end{flushright}
+  \underline{Decode ex.:}\\
+  \vspace{-0.3cm}
+  \hspace{2cm}
+    \begin{tabular}{r|r|r}
+      $\gamma$-code & bin & num\\
+      \hline
+      0, & 1 & 1 \\
+      10,0 & 10 & 2\\
+      111110,01010 & 101010 & 42
+    \end{tabular}    \\
+    \textcolor{red}{Attention:} To interpret code must prepend 1 to offset!\\
+  \textbf{Q:} What is length of bits in $\gamma$-code of n $\in \N$? \textbf{A:} $2 \log(n) - 1$ 
+\end{addmargin}
+
+\paragraph{Golomb Code:} For term frequencies with a geometric distribution one can create ``optimal'' Huffmann style codes called Golomb Codes! Optimal in the sense that more frequent terms have shorter codes and vice versa. \\
+\textcolor{red}{Note:} Golomb Code would be best in terms of compression, but not only that matters!
+\begin{addmargin}[0.28cm]{0cm} % left, right
+  \underline{Golomb Code:} Encode number $x \geq 1$ given parameter b:
+  \begin{itemize}
+    \item Compute quotient: $q = \lfloor (x-1)/b \rfloor$
+    \item Compute remainder: $r = (x-1) \mod b$
+    \item Encode $q$ in unary ($q \times 1$ + 0) followed by $r$ in binary
+  \end{itemize}
+  \underline{Encode ex:}
+  \begin{align*}
+    \text{Given: } &b = 4 \text{ and } x = 15 \\
+                   &\Rightarrow q = \lfloor 14 / 4 \rfloor = 3 &&\Rightarrow 1110\\
+                   &\Rightarrow r = 14 \mod b = 2 &&\Rightarrow 10 \\
+                   &\Rightarrow 111010
+  \end{align*}
+  \underline{Decode ex:} $q \cdot b$ + $r$ + 1
+  \begin{align*}
+    \text{Given: } &b = 4, q = 3 \text{ and } r = 2 \\
+                  &\Rightarrow 3 \cdot 4 + 2 + 1 = 15
+  \end{align*}
+\end{addmargin}
+
+\paragraph{Group Varint Encoding:} Golomb Codes or Block-Based Index Formats have good compression, but are expensive to decode. Group Varint Encoding is more efficient! The idea is to put $4 \times 2$ bit lengths together in 1 Byte! Now encoding is limited to 32 bits. The 2 bits encode how many bytes (1-4) have to be read!
+
 \msection{Convex Optimization}
 \textbf{Primal problem:} 
 $ \min_{\textbf{x}} f(\mathbf{x}) \quad \text{subject to} \quad g_i(\mathbf{x}) \leq 0, i = 1, \ldots, m$\\
@@ -527,15 +748,6 @@ $L_\rho(x, z, \nu) = f(x) + p(z)+ \nu^T (Ax+Bz-c) + {\rho \over 2}||Ax + Bz- c||
 \hspace{0.2cm}$z^{k+1} = \argmin_z L_\rho(x^{k+1}, z, \nu^k)$\\
 \hspace{0.2cm}$\nu^{k+1} = \nu^k + \rho \nabla d(\nu^k) = \nu^k + \rho(Ax^{k+1}+Bz^{k+1}-c)$\\
 Primal Feasibility condition: $Ax^\star + Bz^\star - c = 0$\\
-Dual Feasibiliy conditions:$\nabla f(x^\star) \hspace{-0.05cm} + \hspace{-0.05cm} A^\top \nu^\star \hspace{-0.05cm} = \hspace{-0.05cm} 0$ and $\nabla p(z^\star) \hspace{-0.05cm} + \hspace{-0.05cm} B^\top \nu^\star \hspace{-0.05cm} = \hspace{-0.05cm} 0$\\
-\vspace{0.1cm}
-\section{Robust PCA}
-\textbf{Original:} $\min_{L, S} \text{rank}(\mathbf{L}) + \lambda \text{card}(\mathbf{S}) \quad \text{subject to} \quad \mathbf{L} + \mathbf{S} = \mathbf{X}$\\
-\underline{\textbf{Convex relaxation:}} $\min_{L, S} ||\mathbf{L}||_* + \lambda ||\mathbf{S}||_1  \hspace{-0.1cm} \quad  \hspace{-0.1cm}\text{subject to} \quad \mathbf{L} + \mathbf{S} = \mathbf{X}$\\
-Exact(L$^\star$=L$_0$, S$^\star$=S$_0$) with prob. $1-\mathcal O(n^{-10})$,PCP with $\lambda  \hspace{-0.05cm} =  \hspace{-0.05cm} {1 \over \sqrt n}$for:\\
-\hspace{0.2cm}$\mathbf L_0:\ n\times n, \text{ of } rank(\mathbf L_0)\leq \rho_r n \mu^{-1} (\log n)^{-2}$\\
-\hspace{0.2cm}$\mathbf S_0:\ n\times n, \text{ random sparsity pattern of cardinality }m \leq \rho_s n^2$\\
-\underline{\textbf{RPCA for CF:}}
-$\min_{L, S} ||\mathbf{L}||_* + \lambda ||\mathbf{S}||_1 \quad \text{s.t.} \quad \mathbf{L}_{ij} + \mathbf{S}_{ij} = \mathbf{X}_{ij}$
+Dual Feasibiliy conditions:$\nabla f(x^\star) \hspace{-0.05cm} + \hspace{-0.05cm} A^\top \nu^\star \hspace{-0.05cm} = \hspace{-0.05cm} 0$ and $\nabla p(z^\star) \hspace{-0.05cm} + \hspace{-0.05cm} B^\top \nu^\star \hspace{-0.05cm} = \hspace{-0.05cm} 0$
 \end{multicols}%}
 \end{document}
