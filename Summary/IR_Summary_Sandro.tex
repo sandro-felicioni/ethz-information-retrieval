@@ -839,7 +839,102 @@ E.g. Recommend a high rated movie from John, if John is similar in age/sex/inter
   \item relationships to other entities
 \end{itemize}
 
-\paragraph{Entity Linking:} 
+\subsection{Entity Linking:} 
+The process of linking every span of token (in a document/query) to its most likely entity in a knowledge graph (like Freebase or Wikipedia). \\
+
+\textbf{Common steps:}
+\begin{enumerate}
+  \item \underline{Mention detection:} Determine ``linkable'' phrases
+  \item \underline{Link generation:} Rank/select candidate entity links
+  \item \underline{Disambiguation:} Use ``context'' to disambiguate/improve
+\end{enumerate}
+
+\paragraph{Mention detection via Key-phraseness:} Based on a corpus (e.g. Wikipedia) look how often a term is part of a link to another Wikipedia page. The reasoning is that if a term is part of a link, then it's likely that the term is meaningful and represents an entity! Key-phraseness measures how likely it is that a wikipedia author will link a term! 
+\textcolor{red}{Note:} This measure is possibly biased/cencored! I.e. Some terms may not be linked on purpose!
+\begin{align*}
+  \text{key-phraseness(w)} = \frac{\# \text{Wikipedia links with w}}{\text{cf(w)}}
+\end{align*}
+
+\paragraph{Name Model:} Collect statistics on how often terms occur in names of entities! I think this can either be used for ranking of candidate entity links or also for disambiguation.
+\begin{addmargin}[0.28cm]{0cm} % left, right
+  \begin{itemize}
+    \item \underline{Term-based statistics:} Commonness, measures how often a single term is associated with an entity.
+    \[
+      \text{commonness(w, e)} = \frac{\text{\# links with w that point to e}}{\text{\# links with w}}
+    \]
+    \item \underline{Name-based statistics:} Entity probability, measures the likelihood of an entity given a whole name n. \\
+    \textcolor{red}{Downside:} Needs large corpus to estimate statistics
+    \[
+      \hat{p}(\text e | \text n) = \frac{\text{\# anchors n that point to e}}{\text{\# anchors with n}}
+    \]
+  \end{itemize}
+\end{addmargin}
+
+\paragraph{Disambiguation from Context:} Compute a similarity / relatedness score between ``mention context'' and ``entity''. This can be combined with the name-based evidence $\hat{p}(\text e | \text n)$ to disambiguate!
+\begin{addmargin}[0.28cm]{0cm} % left, right
+  \underline{Relatedness:} Given entities $e$ and $f$:\\
+  $S_e = \text{Set of all Wikipedia pages that link to } d_e$\\
+  $N = \text{Total number of Wikipedia pages}$
+  \begin{align*}
+    \text{relatedness}(e, f) =& 1 - \frac{\log \max\{|S_e|, |S_f|\} - \log| S_e \cap S_f |}{N - \log \min \{ |S_e|, |S_f| \}}
+  \end{align*}
+\end{addmargin}
+
+\subsection{Semantic Search}
+The idea is that if we understand the intent of the user query, then we can provide more accurate answers. E.g. If we know the ``Washington-ambiguity'', then we can go back to the user and disambiguate!
+\vfill
+\columnbreak
+
+\msection{13 - Search Personalization}
+\subsection{Search Diversification}
+We don't want just n relevant documents, they should also be diverse so that different content is presented!\\
+\paragraph{General procedure:} Pick the most relevant document as 1st and then greedily pick the next document that jointly maximizes relevance and diversity e.g. $L_k = \text{arg max}_k (\lambda R_k + (1 - \lambda) D_k)$\\
+
+\paragraph{Estimating Result List Diversity:} Typically compare the 2 result lists at step k and (k+1)!
+%\begin{addmargin}[0.28cm]{0cm} % left, right
+  \begin{itemize}
+    \item \underline{Term Statistics:} Measures diversity using KL-divergence. We want that the 2 lists have a divers vocabulary.
+    \[
+      D_{k+1} = \sum_{\w \in L_{k+1}} P_k(\w) \ln \frac{P_k(\w)}{P_{k+1}(\w)}
+    \]
+    \item \underline{Topic Coverage:} Measures diversity by number of topics that are covered. We want the 2 lists to cover many different topics! At each step $k$ we count the \# topics covered by our result list. \\
+    \textcolor{red}{Note:} This requires that we assign topics to documents!
+    \[
+      D_{k+1} = \frac{t_{k+1}}{k+1}
+    \]
+    \item \underline{Web Graph Coverage:} Measures diversity by looking at the domains where the pages come from. We want that the 2 lists have pages from many different domains, since e.g. pizza.it/margheritta and .../funghi are likely to be similar!
+  \end{itemize}
+%\end{addmargin}
+
+\subsection{Federated Search:}
+When we issue a query it's not per se clear what kind of media we expect as result. Federated Search addresses this issue by returning diverse media for a query. E.g. For ``cute kittens'' much more likely that we want images than text!
+
+\paragraph{Creating Vertical Mixture:} If we want to select a mixture of media types for a given query, then we have 2 options:
+\begin{itemize}
+  \item \underline{If we have log files of a search engine:} Use log files to cluster past issued queries into intent-clusters and then for a new query simply select the k closest clusters. Consider only those clusters with a certain share of overall traffic to prevent vertical clutter.
+
+  \item \underline{Otherwise, the content might give us cues:} Can directly ``guess'' the intent from the content of the query! Look at query term distribution over different media types a la: P(query $|$ media)\\
+  E.g. ``cute kitten'' $\Rightarrow$ image, ``review'' $\Rightarrow$ shopping
+\end{itemize}
+
+\subsection{Search Personalization}
+A users interaction history gives much clue about future preferences. Can extract information from previous queries/pages, domain expertise, content complexity, language preferences etc. This can all be used for creating a personal ranking!\\
+\textcolor{red}{Note:} Personalization requires user identification (e.g. Cookies)!
+\textcolor{red}{Beware:} Personalization should not be applied blindly! Depending on query, we may not want to personalize at all!\\
+E.g. A public shared computer doesn't need personalization or when you retrieve medical documents you might not want the result list being influenced by personal preference, but rather want all relevant documents!
+
+\textbf{Domain Expertise:} Whether the user shows searching (adult) or browsing (child) behavior can indicate the level of expertise. Can also check if the query contains complex technical terms. 
+
+\textbf{Content Complexity:} Can measure text complexity (e.g. Average Sentence Length) of retrieved web pages and just return the documents that are adequate to the users age and knowledge degree.\\
+E.g. Gossip documents have rather simple sentence structure while technical documents are rather complex and use expert jargon.
+
+\subsection{Search Context}
+\textbf{Location-dependent Information Needs:} If you can identify a ``local information need'' then it can help to retrieve the right result. \\
+E.g. For the query ``pizza store'' it should just give results of pizza stores in local area!
+
+\textbf{Search from various Device Types:} The used device type has big influence on ``information need'' and expected result!\\
+E.g. If you query ``grocery store'' on your mobile phone you may just want the next address, but on computer may want definition/images/maps etc.
+
 \end{multicols}%}
 
 \end{document}
