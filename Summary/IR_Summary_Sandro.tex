@@ -273,7 +273,7 @@ We want to estimate the term distribution P(w$|$d) so that we can compute the qu
 \begin{itemize}[leftmargin=0.3cm]
   \item [+] simple and clean model without complicated assumptions
   \item [+] can use document collection to learn these distributions
-  \item [--] Assumption of query generation is too simplistic)
+  \item [--] Assumption of query generation is too simplistic
   \item [--] Why should relevance be tied to term distribution?
 \end{itemize}
 \paragraph{MLE and Smoothing:} Use smoothing to get better estimates for small frequencies (and for unseen terms).\\
@@ -339,7 +339,7 @@ It's an approximation to the optimal bayes classifier, which assumes conditional
 Now we can empirically estimate $P(c)$ and $P(\w | c)$ from labeled data
 \begin{align*}
   \hat{P}(c) &= \frac{\# \{d : d \in c \}}{\# \{ d \}} &=& \hspace{0.2cm} \frac{\text{num documents in class}}{\text{num documents in collection}}\\
-  \hat{P}(\w | c) &= \frac{\sum_{d \in c} \tf}{\sum_{d \in c} \text{len}(d)} &=& \hspace{0.2cm}  \frac{\text{num word occurrences in class}}{\text{num words in collection}} \\
+  \hat{P}(\w | c) &= \frac{\sum_{d \in c} \tf}{\sum_{d \in c} \text{len}(d)} &=& \hspace{0.2cm}  \frac{\text{num word occurrences in class}}{\text{num words in class}} \\
 \end{align*}
 Plug-in our estimates we get:
 \begin{align*}
@@ -387,11 +387,12 @@ SVM is the method of choice based on various experimental studies. Can use kerne
 
 %%%%%%%%%%%%%%%%%%%%% Learning to Rank %%%%%%%%%%%%%%%%%%%%%%%%%%
 \msection{7 - Learning to Rank}
-\paragraph{Pointwise relevance data:} We want to assess the relevance/rank for each individual document. That is, for a given document we want predict its relevance (e.g. may have 5 relevance classes). Use e.g. Ordinal Regression: doc\_1 $\Rightarrow$ r\_2
+\paragraph{Pointwise relevance data:} We have relevance/rank assessments for each individual document (e.g. doc\_1 $\Rightarrow$ r\_2). 
 
-\paragraph{Pairwise preference data:} We just want to assess the relative ranking between pairs of documents. That is, for a document pair (doc\_i, doc\_j) we want to say e.g. doc\_i is more relevant than doc\_j. Use classification methods with input h(x$_i$ - x$_j$).
+\paragraph{Pairwise preference data:} We just have relative rankings between pairs of documents (e.g. doc\_7 $\succ$ doc\_4).
+That is, given a document pair (doc\_i, doc\_j) we want to predict e.g. doc\_i is more relevant than doc\_j. Use classification methods with input h(x$_i$ - x$_j$).
 
-\paragraph{List data:} We want to predict the entire ranked list of all documents. That is, given all documents as input, we want to predict a complete ranking list. \\
+\paragraph{List data:} We have ideal ranked lists which serve as ground truth. That is, given all documents as input, we want learn to predict a complete ranking list. Use structured SVM!\\
 E.g. 
 \begin{tabular}{l|c}
 \hline
@@ -402,7 +403,7 @@ r\_3 & doc\_2 \\
 
 \subsection{Ordinal Regression for Pointwise Ranking} We don't need exact numeric relevance values, just the relevance order matters (e.g. -2, -1, 0, 1, 2)! The geometric idea is to find a line, which can be divided into several non-overlapping intervals so that the projection of a datapoint onto this line results in the desired interval. The thresholds are monotonically increasing:
 \begin{align*}
-  - \infty = \sigma_0 < \sigma_1 \leq \sigma_2 \leq ... \sigma_{R-1} < \sigma_R = \infty
+  - \infty = \sigma_0 < \sigma_1 \leq \sigma_2 \leq ... \leq \sigma_{R-1} < \sigma_R = \infty
 \end{align*}
 
 \paragraph{Ordinal Regression with Margins:} To be more robust we add margins to both ends of each interval. I.e. we want $\btheta^{\top} \mathbf{x}_i$ to be greater then left threshold and smaller than right threshold up to a margin of 1:
@@ -440,7 +441,7 @@ For preference $d \succ d'$ want $\btheta^{\top} \mathbf{x}_{d, q} > \btheta^{\t
 \end{itemize}
 
 \subsection{List-Based Ranking}
-The idea is to directly maximize a precision-based criterion e.g. (mean) average precision.
+The idea is to directly maximize a precision-based criterion e.g. (mean) average precision. Can use structured SVM to optimize!
 
 
 %%%%%%%%%%%%%%%%%%%%% Document Indexing %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -471,7 +472,12 @@ E.g. Map[String, List[(doc\_id, position)]]\\
 \paragraph{In-Memory Index Construction:} If everything fits in memory then the index can directly be constructed in memory on 1 machine.\\
 \textcolor{red}{Issue:} Lack of scalability (speed but also memory)
 
-\paragraph{Blocked Sort-Based Indexing (BSBI):} Create small blocks of postings (e.g. 1 posting = (term\_id, doc\_id, frequency))which fit in memory. Then sort each block (e.g. after term and then doc\_id) and write them to disk. Then merge all blocks into one long sorted order (e.g. external merge sort) and again write to disk. You can then create a dictionary by making one pass over the whole sequence.\\
+\paragraph{Blocked Sort-Based Indexing (BSBI):} Create small blocks of postings (e.g. 1 posting = (term\_id, doc\_id))which fit in memory. Then accumulate postings for each block and then sort each block (e.g. after term and then doc\_id) and write them to disk. Then merge all blocks into one long sorted order (e.g. external merge sort) and again write to disk.\\
+\vspace{-0.8cm}\hspace{2cm}
+\begin{center}
+  \includegraphics[width=0.7\columnwidth]{bsbi.png}
+\end{center}
+\vspace{-0.3cm}
 \underline{Dictionary Representation:}
 \begin{enumerate}
   \item Represent token as strings $\Rightarrow$ significant memory blow-up
@@ -512,7 +518,7 @@ We have 2 options on how to split up the index into pieces/shards:
   \item \underline{Term sharding:} Each shard contains few posting lists for all documents.
 \end{itemize}
 
-\paragraph{Document sharding:} We split the posting lists by document ID ranges. Then each shard contains many (1 for every vocabulary term) short posting lists. I.e. for every (term, List[doc\_id]) keep only those doc\_id's which belong to the assigned subset of documents. 
+\paragraph{Document sharding:} We split the posting lists by document ID ranges. Then each shard contains many (1 for every vocabulary term) short posting lists. I.e. for every (term, List[doc\_id]) keep only those doc\_id's which belong to the assigned subset of documents. Some sub-list may be empty (rare words)!
 \begin{itemize}
   \item[+] Each shard can process queries independently. I.e. Each shard can compute full scores for each document (not possible in term sharding)
   \item[+] Easy to keep additional per-document information (e.g. tf)
